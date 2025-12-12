@@ -17,15 +17,14 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: TypeScript (strict mode)  
+**Package Manager**: pnpm  
+**Primary Dependencies**: React, Vite, React Router, shadcn/ui, Tailwind CSS, Lucide  
+**Storage**: Browser localStorage (no backend API)  
+**Testing**: Playwright E2E tests only  
+**Target Platform**: Web browser (clickable prototype)  
+**Project Type**: Single frontend application  
+**Constraints**: Prototype only - localStorage for all data persistence
 
 ## Constitution Check
 
@@ -56,39 +55,16 @@ specs/[###-feature]/
 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+├── types/         # TypeScript interfaces for data entities
+├── hooks/         # Custom hooks (useLocalStorage, etc.)
+├── components/    # Reusable UI components (shadcn/ui based)
+├── pages/         # Route-level components
+├── lib/           # Utilities (storage.ts, etc.)
+└── data/          # Seed data for demo/testing
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+└── e2e/           # Playwright E2E tests only
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real

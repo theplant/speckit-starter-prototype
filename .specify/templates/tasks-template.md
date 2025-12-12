@@ -20,10 +20,14 @@ description: "Task list template for feature implementation"
 
 ## Path Conventions
 
-- **Single project**: `src/`, `tests/` at repository root
-- **Web app**: `backend/src/`, `frontend/src/`
-- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+- **Source**: `src/` at repository root
+- **Types**: `src/types/` for TypeScript interfaces
+- **Hooks**: `src/hooks/` for custom hooks (useLocalStorage, etc.)
+- **Components**: `src/components/` for reusable UI components
+- **Pages**: `src/pages/` for route-level components
+- **Utilities**: `src/lib/` for helpers (storage.ts, etc.)
+- **Seed Data**: `src/data/` for demo/testing data
+- **E2E Tests**: `tests/e2e/` for Playwright tests only
 
 <!-- 
   ============================================================================
@@ -48,9 +52,11 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+- [ ] T001 Create project with `pnpm create vite@latest . --template react-ts`
+- [ ] T002 Install dependencies: `pnpm add react-router-dom lucide-react`
+- [ ] T003 [P] Initialize Tailwind CSS: `pnpm dlx tailwindcss init -p`
+- [ ] T004 [P] Initialize shadcn/ui: `pnpm dlx shadcn@latest init --defaults`
+- [ ] T005 [P] Configure Playwright: `pnpm create playwright --yes`
 
 ---
 
@@ -60,14 +66,11 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-Examples of foundational tasks (adjust based on your project):
-
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T006 Create localStorage wrapper in `src/lib/storage.ts` with logging for test mode
+- [ ] T007 [P] Define base TypeScript interfaces in `src/types/`
+- [ ] T008 [P] Setup React Router with base routes in `src/App.tsx`
+- [ ] T009 [P] Create seed data utilities in `src/data/`
+- [ ] T010 Configure Playwright to use port 5199 and list reporter
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -79,21 +82,19 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+### E2E Tests for User Story 1 (MANDATORY)
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T011 [P] [US1] E2E test for [user journey] in tests/e2e/[feature].spec.ts
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Create [Entity1] model in src/models/[entity1].py
-- [ ] T013 [P] [US1] Create [Entity2] model in src/models/[entity2].py
-- [ ] T014 [US1] Implement [Service] in src/services/[service].py (depends on T012, T013)
-- [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T016 [US1] Add validation and error handling
-- [ ] T017 [US1] Add logging for user story 1 operations
+- [ ] T012 [P] [US1] Create TypeScript interface in src/types/[entity].ts
+- [ ] T013 [P] [US1] Create localStorage hook in src/hooks/use[Entity].ts
+- [ ] T014 [US1] Implement page component in src/pages/[Page].tsx
+- [ ] T015 [US1] Add UI components in src/components/[Component].tsx
+- [ ] T016 [US1] Add route in src/App.tsx
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -105,17 +106,16 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 2 (OPTIONAL - only if tests requested) ⚠️
+### E2E Tests for User Story 2 (MANDATORY)
 
-- [ ] T018 [P] [US2] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T019 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T017 [P] [US2] E2E test for [user journey] in tests/e2e/[feature].spec.ts
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Create [Entity] model in src/models/[entity].py
-- [ ] T021 [US2] Implement [Service] in src/services/[service].py
-- [ ] T022 [US2] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T023 [US2] Integrate with User Story 1 components (if needed)
+- [ ] T018 [P] [US2] Create TypeScript interface in src/types/[entity].ts
+- [ ] T019 [US2] Create localStorage hook in src/hooks/use[Entity].ts
+- [ ] T020 [US2] Implement page component in src/pages/[Page].tsx
+- [ ] T021 [US2] Integrate with User Story 1 components (if needed)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -127,16 +127,15 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 3 (OPTIONAL - only if tests requested) ⚠️
+### E2E Tests for User Story 3 (MANDATORY)
 
-- [ ] T024 [P] [US3] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T025 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T022 [P] [US3] E2E test for [user journey] in tests/e2e/[feature].spec.ts
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Create [Entity] model in src/models/[entity].py
-- [ ] T027 [US3] Implement [Service] in src/services/[service].py
-- [ ] T028 [US3] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T023 [P] [US3] Create TypeScript interface in src/types/[entity].ts
+- [ ] T024 [US3] Create localStorage hook in src/hooks/use[Entity].ts
+- [ ] T025 [US3] Implement page component in src/pages/[Page].tsx
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -152,10 +151,9 @@ Examples of foundational tasks (adjust based on your project):
 
 - [ ] TXXX [P] Documentation updates in docs/
 - [ ] TXXX Code cleanup and refactoring
-- [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
-- [ ] TXXX Security hardening
+- [ ] TXXX [P] Add more seed data for demo purposes
 - [ ] TXXX Run quickstart.md validation
+- [ ] TXXX Verify all E2E tests pass with `pnpm test:e2e`
 
 ---
 
@@ -178,7 +176,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ### Within Each User Story
 
-- Tests (if included) MUST be written and FAIL before implementation
+- E2E tests MUST be written and FAIL before implementation
 - Models before services
 - Services before endpoints
 - Core implementation before integration
@@ -198,13 +196,12 @@ Examples of foundational tasks (adjust based on your project):
 ## Parallel Example: User Story 1
 
 ```bash
-# Launch all tests for User Story 1 together (if tests requested):
-Task: "Contract test for [endpoint] in tests/contract/test_[name].py"
-Task: "Integration test for [user journey] in tests/integration/test_[name].py"
+# Launch E2E test for User Story 1:
+Task: "E2E test for [user journey] in tests/e2e/[feature].spec.ts"
 
-# Launch all models for User Story 1 together:
-Task: "Create [Entity1] model in src/models/[entity1].py"
-Task: "Create [Entity2] model in src/models/[entity2].py"
+# Launch all types/hooks for User Story 1 together:
+Task: "Create TypeScript interface in src/types/[entity].ts"
+Task: "Create localStorage hook in src/hooks/use[Entity].ts"
 ```
 
 ---

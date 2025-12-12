@@ -1,50 +1,282 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT - 2025-12-13
+================================
+Version change: 1.5.0 → 2.0.0 (MAJOR)
+
+Modified Principles:
+- "E2E Testing Discipline" → Updated to remove backend API references, use localStorage
+- "API-First Contract & Type-Safe Client" → REMOVED (replaced with "Local Storage Data Layer")
+- "Query-Centric Data" → REMOVED (replaced with "State Management" using React Context)
+
+Added Sections:
+- "Local Storage Data Layer" (Principle III)
+- "LocalStorage Transparency (NON-NEGOTIABLE)" in E2E Testing
+- "Command Execution (NON-NEGOTIABLE)" in Technology Stack
+
+Removed Sections:
+- API-First Contract & Type-Safe Client
+- Query-Centric Data (TanStack Query)
+- Backend API Reference
+- Type Generation Command
+- API Request/Response Transparency
+
+Templates Updated:
+- ✅ plan-template.md - Updated tech stack, removed backend/mobile options
+- ✅ tasks-template.md - Updated to E2E only, localStorage, pnpm commands
+- ✅ spec-template.md - No changes needed (technology-agnostic)
+
+Follow-up TODOs: None
+================================
+-->
+
+# Clickable Prototype Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. E2E Testing Discipline (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+All testing MUST be done exclusively with Playwright end-to-end tests.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Testing Approach**
+- Every feature MUST have corresponding E2E tests before it is considered complete
+- Tests MUST simulate real user behavior through the browser
+- Tests MUST cover the full user journey, not isolated components
+- No unit tests, no integration tests in isolation
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Coverage Requirements**
+- All routes (public, error) MUST have E2E test coverage
+- All user interactions (buttons, forms, modals, navigation, CRUD) MUST be tested
+- All loading states and error states MUST be verified
+- Route parameters and query strings MUST be tested for edge cases
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**Local Storage Data**
+- All data persistence MUST use browser localStorage
+- Tests MUST be able to seed localStorage with test data
+- Tests MUST clear localStorage before each test run for isolation
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Test Independence**
+- Tests MUST NOT depend on execution order of other tests
+- Tests MUST clean up any data they create (or use isolated test data)
+- Tests MUST be able to run in parallel without conflicts
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+**AI-Driven Execution**
+- Tests MUST run non-interactively without waiting for human review
+- The test-fix cycle MUST be autonomous: run tests → read errors → fix code → re-run
+- Playwright MUST use only the `'list'` reporter for clean, parseable AI output
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Console Error Capture (NON-NEGOTIABLE)**
+- All browser console errors MUST be captured and output during test execution
+- React/JavaScript errors (e.g., context errors, runtime exceptions) MUST be visible in test output
+- Tests MUST listen to `page.on('console')` and `page.on('pageerror')` events
+- Console errors MUST be printed immediately when they occur, not just on test failure
+- This ensures application bugs (like missing context providers) are immediately visible
+- **All console errors MUST cause the test to fail** - a successful test MUST have zero console errors
+- Tests MUST collect console errors and assert that the error list is empty at test completion
+- When tests fail due to console errors, AI agents MUST apply Root Cause Tracing to fix the underlying issue
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**LocalStorage Transparency (NON-NEGOTIABLE)**
+- Create a simple wrapper (`src/lib/storage.ts`) for localStorage read/write operations
+- Wrapper MUST log key and value on every read/write when running in test mode
+- This enables AI agents to see data flow when debugging test failures
+
+**Configuration**
+- Playwright MUST only include the `chromium` project (no Firefox/WebKit)
+- Playwright MUST NOT start its own dev server - tests MUST connect to an existing, separately running dev server
+- The dev server MUST be started manually before running tests (e.g., `pnpm dev` in a separate terminal)
+- Playwright config MUST use `webServer: undefined` or omit the webServer config entirely
+- Tests MUST use `baseURL` pointing to the existing dev server (e.g., `http://localhost:5173`)
+- Test files MUST be in `tests/e2e/` with naming `{route-or-feature}.spec.ts`
+- Page objects MUST be used for reusable page interactions
+- Test utilities MUST be in `tests/e2e/utils/`
+
+**Quality Gates**
+- All E2E tests MUST pass before merge
+- New routes/interactions MUST have corresponding E2E tests
+- No flaky tests allowed - tests MUST be deterministic
+
+**Test Description Alignment (NON-NEGOTIABLE)**
+- Test expectations MUST directly verify what the test description claims to test
+- If a test is named "should display activities", it MUST assert that activities are visible, not just a header
+- Test descriptions are contracts - the assertions MUST fulfill that contract
+- Avoid proxy assertions: testing a header exists does NOT prove the feature works
+- Each test MUST have at least one assertion that directly validates the described behavior
+- Example violation: `test('should display activities')` with only `expect(header).toBeVisible()` - this tests the header, not activities
+- Example correct: `test('should display activities')` with `expect(activityItems.count()).toBeGreaterThan(0)`
+
+### II. Root Cause Tracing (Debugging Discipline)
+
+When problems occur during development, root cause analysis MUST be performed before implementing fixes:
+- Problems MUST be traced backward through the call chain to find the original trigger
+- Symptoms MUST be distinguished from root causes
+- Fixes MUST address the source of the problem, NOT work around symptoms
+- Test cases MUST NOT be removed or weakened to make tests pass
+- Debuggers and logging MUST be used to understand control flow
+- Multiple potential causes MUST be systematically eliminated
+- Documentation MUST be updated to prevent similar issues
+- Root cause MUST be verified through testing before closing the issue
+
+**Rationale**: Superficial fixes create technical debt and hide underlying architectural problems. Root cause analysis ensures problems are solved at their source, preventing recurrence and maintaining system integrity. This discipline transforms debugging from firefighting into systematic problem-solving that improves overall code quality.
+
+**Debugging Process**:
+1. **Reproduce**: Create reliable reproduction case
+2. **Observe**: Gather evidence through logs, debugger, tests
+3. **Hypothesize**: Form theories about root cause
+4. **Test**: Design experiments to validate/invalidate hypotheses
+5. **Fix**: Implement fix addressing root cause
+6. **Verify**: Ensure fix works and doesn't break existing functionality
+7. **Document**: Update docs/tests to prevent regression
+
+**AI Implementation Requirement**:
+- AI agents MUST perform root cause analysis before implementing fixes
+- AI agents MUST NOT implement superficial workarounds
+- AI agents MUST document the root cause analysis process
+- AI agents MUST update tests to prevent regression of root causes
+
+### III. Local Storage Data Layer
+
+All data persistence MUST use browser localStorage. This is a clickable prototype - no backend API integration.
+
+**Data Storage Rules**
+- All data MUST be stored in localStorage with JSON serialization
+- Each data entity type MUST have its own localStorage key (e.g., `prototype_users`, `prototype_projects`)
+- Data operations MUST be synchronous and immediate
+- CRUD operations MUST update localStorage directly
+
+**Type Safety Requirements**
+- Define TypeScript interfaces for all data entities in `src/types/`
+- NEVER use `any` type for data operations
+- All localStorage read/write operations MUST be type-safe
+- Use Zod or similar for runtime validation when reading from localStorage
+
+**Data Utilities**
+- Create reusable hooks for localStorage operations (e.g., `useLocalStorage`)
+- Implement helper functions for CRUD operations in `src/lib/storage.ts`
+- Seed data MUST be available for demo/testing purposes
+
+### IV. Component-Driven UI
+
+Build UI as a composition of reusable, isolated components.
+
+- MUST use shadcn/ui as the component library foundation
+- Components MUST be stateless where possible; lift state up
+- Styling MUST use utility-first CSS (e.g., Tailwind CSS)
+- Each component MUST have a single responsibility
+- Prefer composition over prop drilling; use context sparingly
+
+### V. State Management
+
+Use React state and context for data management with localStorage persistence.
+
+- Use React Context for shared state across components
+- Use custom hooks for localStorage read/write operations
+- State updates MUST immediately persist to localStorage
+- On app load, state MUST be hydrated from localStorage
+- Minimal global state; prefer component-local state where possible
+- Use React state for UI-only concerns (modals, forms, etc.)
+
+### VI. Simplicity
+
+Start simple. Add complexity only when proven necessary.
+
+- YAGNI: Do not build features "just in case"
+- Prefer fewer dependencies over many
+- Avoid premature abstraction; wait for patterns to emerge
+- Configuration over code where possible
+- Delete code that is not used
+
+## Technology Stack
+
+**Core Framework:**
+- TypeScript (strict mode enabled)
+- React with functional components and hooks
+- Vite for build tooling
+- pnpm as package manager
+
+**Data Layer:**
+- Browser localStorage for data persistence
+- React Context for shared state
+- Custom hooks for localStorage operations
+
+**UI Layer:**
+- Tailwind CSS for styling
+- shadcn/ui components
+- Lucide for icons
+
+**Testing:**
+- Playwright for E2E tests
+- E2E tests: test all user journeys with localStorage
+
+**Routing:**
+- React Router
+- Route structure mirrors resource hierarchy
+
+**Command Execution (NON-NEGOTIABLE)**
+- All CLI commands MUST run with default values - NEVER wait for user input
+- Use `--yes`, `--default`, `-y`, or equivalent flags to auto-accept defaults
+- Example: `pnpm create vite@latest my-app --template react-ts`
+- Example: `pnpm dlx shadcn@latest init --defaults`
+- If a command has no auto-accept flag, pipe `yes` or use expect scripts
+
+## Development Workflow
+
+### Implementation Order (MANDATORY)
+
+For each user story, tasks MUST be executed in this exact order:
+
+1. **Define Types**: Create TypeScript interfaces in `src/types/`
+2. **Write E2E Tests**: Create failing tests in `tests/e2e/`
+3. **Verify Tests Fail**: Run `pnpm test:e2e` - all new tests MUST fail
+4. **Implement Storage**: Create localStorage hooks/utilities
+5. **Implement Components**: Build UI components consuming hooks
+6. **Verify Tests Pass**: Run full test suite - all tests MUST pass
+7. **Refactor**: Clean up code while keeping tests green
+
+**⚠️ VIOLATION**: Implementing code before tests exist is a constitution violation.
+
+### Code Organization
+
+```
+src/
+├── types/         # TypeScript interfaces for data entities
+├── hooks/         # Custom hooks (useLocalStorage, etc.)
+├── components/    # Reusable UI components
+├── pages/         # Route-level components
+├── lib/           # Utilities (storage.ts, etc.)
+└── data/          # Seed data for demo/testing
+tests/
+└── e2e/           # End-to-end user journey tests (Playwright)
+```
+
+### Quality Gates
+
+- All tests MUST pass before merge
+- Type checking MUST pass (`tsc --noEmit`)
+- Linting MUST pass (ESLint)
+- Format MUST be consistent (Prettier)
+- No `any` types without explicit justification
+
+
+
+
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices for this clickable prototype project.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Amendment Process:**
+1. Propose change with rationale
+2. Review impact on existing code
+3. Update constitution with version bump
+4. Communicate changes to team
+
+**Compliance:**
+- All PRs MUST verify compliance with these principles
+- Complexity MUST be justified in PR description
+- Violations require explicit exception with documented reasoning
+
+**Version Policy:**
+- MAJOR: Principle removal or fundamental change
+- MINOR: New principle or significant guidance addition
+- PATCH: Clarifications and minor refinements
+
+**Version**: 2.0.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-13
