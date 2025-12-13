@@ -1,29 +1,22 @@
 <!--
 SYNC IMPACT REPORT - 2025-12-13
 ================================
-Version change: 1.5.0 → 2.0.0 (MAJOR)
+Version change: 2.0.0 → 2.1.0 (MINOR)
 
 Modified Principles:
-- "E2E Testing Discipline" → Updated to remove backend API references, use localStorage
-- "API-First Contract & Type-Safe Client" → REMOVED (replaced with "Local Storage Data Layer")
-- "Query-Centric Data" → REMOVED (replaced with "State Management" using React Context)
+- Fixed duplicate Principle III numbering (Root Cause Tracing → III, Local Storage → IV)
+- Renumbered: Component-Driven UI → V, State Management → VI, Simplicity → VII
 
 Added Sections:
-- "Local Storage Data Layer" (Principle III)
-- "LocalStorage Transparency (NON-NEGOTIABLE)" in E2E Testing
-- "Command Execution (NON-NEGOTIABLE)" in Technology Stack
+- Principle VIII: Acceptance Scenario Coverage (Spec-to-Test Mapping)
 
 Removed Sections:
-- API-First Contract & Type-Safe Client
-- Query-Centric Data (TanStack Query)
-- Backend API Reference
-- Type Generation Command
-- API Request/Response Transparency
+- None
 
 Templates Updated:
-- ✅ plan-template.md - Updated tech stack, removed backend/mobile options
-- ✅ tasks-template.md - Updated to E2E only, localStorage, pnpm commands
-- ✅ spec-template.md - No changes needed (technology-agnostic)
+- ✅ plan-template.md - No changes needed
+- ✅ tasks-template.md - Verified scenario ID naming convention
+- ✅ spec-template.md - No changes needed (already has acceptance scenarios)
 
 Follow-up TODOs: None
 ================================
@@ -152,7 +145,7 @@ When problems occur during development, root cause analysis MUST be performed be
 - AI agents MUST document the root cause analysis process
 - AI agents MUST update tests to prevent regression of root causes
 
-### III. Local Storage Data Layer
+### IV. Local Storage Data Layer
 
 All data persistence MUST use browser localStorage. This is a clickable prototype - no backend API integration.
 
@@ -173,7 +166,7 @@ All data persistence MUST use browser localStorage. This is a clickable prototyp
 - Implement helper functions for CRUD operations in `src/lib/storage.ts`
 - Seed data MUST be available for demo/testing purposes
 
-### IV. Component-Driven UI
+### V. Component-Driven UI
 
 Build UI as a composition of reusable, isolated components.
 
@@ -183,7 +176,7 @@ Build UI as a composition of reusable, isolated components.
 - Each component MUST have a single responsibility
 - Prefer composition over prop drilling; use context sparingly
 
-### V. State Management
+### VI. State Management
 
 Use React state and context for data management with localStorage persistence.
 
@@ -194,7 +187,7 @@ Use React state and context for data management with localStorage persistence.
 - Minimal global state; prefer component-local state where possible
 - Use React state for UI-only concerns (modals, forms, etc.)
 
-### VI. Simplicity
+### VII. Simplicity
 
 Start simple. Add complexity only when proven necessary.
 
@@ -203,6 +196,34 @@ Start simple. Add complexity only when proven necessary.
 - Avoid premature abstraction; wait for patterns to emerge
 - Configuration over code where possible
 - Delete code that is not used
+
+### VIII. Acceptance Scenario Coverage (Spec-to-Test Mapping)
+
+Every user scenario in specifications MUST have corresponding automated tests.
+
+**Test Case Requirements**
+- Each acceptance scenario (US#-AS#) in spec.md MUST have a test case
+- Test case names MUST reference source scenarios (e.g., "US1-AS1: New customer enrolls")
+- Test functions MUST use table-driven design with test case structs where applicable
+- Each test case struct MUST include `name` field with scenario ID
+- Tests MUST validate complete "Then" clause, not partial behavior
+
+**Coverage Enforcement**
+- No untested scenarios MUST exist (or be explicitly deferred with justification)
+- Test coverage analysis MUST verify all scenarios are tested
+- AI agents MUST flag any scenarios that cannot be tested with justification
+- AI agents MUST update tests when specifications change to add/modify scenarios
+
+**Rationale**: Specifications define expected behavior, but only automated tests guarantee that behavior is maintained. Acceptance scenario coverage bridges the gap between business requirements and implementation, ensuring the system actually does what the specifications claim. Without this mapping, specifications become documentation that drifts from reality, leading to false assumptions and undetected regressions.
+
+**Code Review Checklist**:
+- [ ] Every acceptance scenario in spec.md has a corresponding test case
+- [ ] Test case names reference source scenarios (e.g., "US1-AS1: New customer enrolls")
+- [ ] Test function uses table-driven design with test case structs (where applicable)
+- [ ] Test case struct includes `name` field with scenario ID (US#-AS#)
+- [ ] No untested scenarios exist (or are explicitly deferred with justification)
+- [ ] Test validates complete "Then" clause, not partial behavior
+- [ ] Traceability matrix is up to date (optional but recommended)
 
 ## Technology Stack
 
@@ -299,4 +320,4 @@ This constitution supersedes all other development practices for this clickable 
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
 
-**Version**: 2.0.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-13
+**Version**: 2.1.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-13
