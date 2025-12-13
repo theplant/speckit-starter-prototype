@@ -103,7 +103,27 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Example violation: `test('should display activities')` with only `expect(header).toBeVisible()` - this tests the header, not activities
 - Example correct: `test('should display activities')` with `expect(activityItems.count()).toBeGreaterThan(0)`
 
-### II. Root Cause Tracing (Debugging Discipline)
+### II. Spec Evolution and Test Maintenance
+
+When new specifications are written that conflict with previous specs, the following rules apply:
+
+**Spec Conflict Resolution**
+- New specs take precedence over old specs for the same feature area
+- Old tests MUST be updated to match new specs, NOT the other way around
+- Tests MUST NOT be skipped to avoid fixing them - use Root Cause Tracing instead
+- Duplicate tests covering the same behavior MUST be removed
+- Tests from old specs that no longer apply MUST be deleted or rewritten
+
+**Test Fix Discipline**
+- NEVER use `test.skip()` to avoid fixing a complicated test
+- ALWAYS trace the root cause of test failures before implementing fixes
+- When UI changes break tests, update test selectors and assertions to match new UI
+- When behavior changes, rewrite test assertions to validate new expected behavior
+- Remove tests that test removed functionality
+
+**Rationale**: Skipping tests creates hidden technical debt and masks real issues. Every skipped test is a gap in coverage that can allow bugs to ship. Root cause tracing ensures we understand why tests fail and fix them properly rather than hiding problems.
+
+### III. Root Cause Tracing (Debugging Discipline)
 
 When problems occur during development, root cause analysis MUST be performed before implementing fixes:
 - Problems MUST be traced backward through the call chain to find the original trigger
