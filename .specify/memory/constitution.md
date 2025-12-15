@@ -68,6 +68,22 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Tests MUST collect console errors and assert that the error list is empty at test completion
 - When tests fail due to console errors, AI agents MUST apply Root Cause Tracing to fix the underlying issue
 
+**Console Error Capture Verification Test (NON-NEGOTIABLE)**
+- After E2E test infrastructure is ready, MUST write a dedicated test that verifies console error capture works
+- This test MUST intentionally trigger a console error and verify it is captured
+- Example test in `tests/e2e/infrastructure.spec.ts`:
+  ```typescript
+  test('should capture console errors', async ({ page }) => {
+    const errors = setupConsoleErrorCapture(page);
+    await page.goto('/');
+    // Intentionally trigger a console error
+    await page.evaluate(() => console.error('Test error for verification'));
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]).toContain('Test error for verification');
+  });
+  ```
+- This ensures the error capture mechanism is working before relying on it for other tests
+
 **LocalStorage Transparency (NON-NEGOTIABLE)**
 - Create a simple wrapper (`src/lib/storage.ts`) for localStorage read/write operations
 - Wrapper MUST log key and value on every read/write when running in test mode
@@ -83,6 +99,34 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Page objects MUST be used for reusable page interactions
 - Test utilities MUST be in `tests/e2e/utils/`
 
+**Operation Timeout with HTML Dump (NON-NEGOTIABLE)**
+- Playwright action timeout MUST be set to 1 second (`actionTimeout: 1000` in config)
+- This ensures tests fail fast when elements are not found or page is broken
+- On timeout failure, the page HTML MUST be dumped immediately for AI inspection
+- Implement a global error handler that outputs `page.content()` on timeout errors
+- Example playwright.config.ts:
+  ```typescript
+  export default defineConfig({
+    timeout: 10000,
+    expect: { timeout: 1000 },
+    use: {
+      actionTimeout: 1000,
+    },
+  });
+  ```
+- Example test fixture for HTML dump on failure:
+  ```typescript
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status !== 'passed') {
+      const html = await page.content();
+      console.log('=== PAGE HTML ON FAILURE ===');
+      console.log(html);
+      console.log('=== END PAGE HTML ===');
+    }
+  });
+  ```
+- This approach replaces manual `assertNoPageErrors()` calls - the fast timeout + HTML dump provides equivalent debugging information automatically
+
 **Quality Gates**
 - All E2E tests MUST pass before merge
 - New routes/interactions MUST have corresponding E2E tests
@@ -96,36 +140,6 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Each test MUST have at least one assertion that directly validates the described behavior
 - Example violation: `test('should display activities')` with only `expect(header).toBeVisible()` - this tests the header, not activities
 - Example correct: `test('should display activities')` with `expect(activityItems.count()).toBeGreaterThan(0)`
-
-**Page Error Check (NON-NEGOTIABLE)**
-- Upon arriving at any target page, tests MUST immediately check the page HTML for error indicators BEFORE any clicks or interactions
-- Tests MUST check for common error patterns:
-  - React error boundaries (e.g., "Something went wrong", "Error boundary")
-  - Server error messages (e.g., "500", "Internal Server Error")
-  - Application crash screens or blank pages with error text
-  - Missing required elements that indicate page failed to render
-- Create a reusable utility function `assertNoPageErrors(page)` in `tests/e2e/utils/`
-- This utility MUST be called after every `page.goto()` and after navigation events
-- If error indicators are found, test MUST fail immediately with descriptive message
-- This catches rendering failures early before wasting time on interactions that will fail
-- Example implementation:
-  ```typescript
-  async function assertNoPageErrors(page: Page) {
-    const html = await page.content();
-    const errorPatterns = [
-      /error boundary/i,
-      /something went wrong/i,
-      /internal server error/i,
-      /500/,
-      /uncaught error/i,
-    ];
-    for (const pattern of errorPatterns) {
-      if (pattern.test(html)) {
-        throw new Error(`Page error detected: ${pattern}`);
-      }
-    }
-  }
-  ```
 
 ### II. Spec Evolution and Test Maintenance
 
@@ -176,22 +190,68 @@ When problems occur during development, root cause analysis MUST be performed be
 - AI agents MUST document the root cause analysis process
 - AI agents MUST update tests to prevent regression of root causes
 
-### IV. Local Storage Data Layer (Browser Worker Backend)
+### IV. Local Storage Data Layer (MSW Mock Backend)
 
-All data persistence MUST use browser localStorage, served via a browser worker that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
+All data persistence MUST use browser localStorage, served via Mock Service Worker (MSW) that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
 
 **Data Storage Rules**
 - All data MUST be stored in localStorage with JSON serialization
 - Each data entity type MUST have its own localStorage key (e.g., `prototype_users`, `prototype_projects`)
-- Data operations MUST be synchronous and immediate within the worker
+- Data operations MUST be synchronous and immediate within handlers
 - CRUD operations MUST update localStorage directly
 
-**Browser Worker Architecture**
-- A Service Worker or Web Worker MUST intercept HTTP fetch requests
-- Worker MUST respond to requests matching the OpenAPI spec format
-- Worker MUST read/write localStorage to fulfill requests
-- Worker MUST return proper HTTP status codes and JSON responses
+**MSW Architecture (NON-NEGOTIABLE)**
+- MUST use Mock Service Worker (MSW) library for API mocking
+- Install: `pnpm add -D msw`
+- Initialize: `pnpm dlx msw init public/ --save`
+- MSW handlers MUST be defined in `src/mocks/handlers.ts`
+- MSW browser worker setup MUST be in `src/mocks/browser.ts`
+- MSW MUST be started in development mode only (not in production builds)
+- Handlers MUST use standard Fetch API Request/Response objects
 - This enables the frontend to use real `fetch()` calls that work identically with a real backend
+
+**MSW Handler Pattern**
+```typescript
+// src/mocks/handlers.ts
+import { http, HttpResponse } from 'msw';
+import { storage, STORAGE_KEYS } from '@/lib/storage';
+
+export const handlers = [
+  http.get('/api/todos', () => {
+    const todos = storage.get(STORAGE_KEYS.TODOS) || [];
+    return HttpResponse.json(todos);
+  }),
+  http.post('/api/todos', async ({ request }) => {
+    const body = await request.json();
+    // ... handle creation
+    return HttpResponse.json(newTodo, { status: 201 });
+  }),
+];
+```
+
+**MSW Browser Setup**
+```typescript
+// src/mocks/browser.ts
+import { setupWorker } from 'msw/browser';
+import { handlers } from './handlers';
+
+export const worker = setupWorker(...handlers);
+```
+
+**MSW Initialization in App**
+```typescript
+// src/main.tsx
+async function enableMocking() {
+  if (import.meta.env.DEV) {
+    const { worker } = await import('./mocks/browser');
+    return worker.start({ onUnhandledRequest: 'bypass' });
+  }
+}
+
+enableMocking().then(() => {
+  // Render app after MSW is ready
+});
+```
 
 **Type Safety Requirements**
 - Define TypeScript interfaces for all data entities in `src/types/`
@@ -358,9 +418,31 @@ src/api/
 **Command Execution (NON-NEGOTIABLE)**
 - All CLI commands MUST run with default values - NEVER wait for user input
 - Use `--yes`, `--default`, `-y`, or equivalent flags to auto-accept defaults
-- Example: `pnpm create vite@latest my-app --template react-ts`
 - Example: `pnpm dlx shadcn@latest init --defaults`
 - If a command has no auto-accept flag, pipe `yes` or use expect scripts
+
+**Project Setup (NON-NEGOTIABLE)**
+- NEVER manually create config files that are supposed to be generated by CLI tools (e.g., `tailwind.config.js`, `postcss.config.js`, `components.json`)
+- Let the CLI tools generate these files with their default/recommended configurations
+- Only modify generated configs AFTER they are created by the tool if customization is needed
+
+- To create Vite project in current non-empty folder without prompts:
+  ```bash
+  pnpm create vite@latest ./app --template react-ts --no-interactive && mv ./app/{.,}* . && rm -d app
+  ```
+
+- Before running `pnpm dlx shadcn@latest init --defaults`, update root `tsconfig.json` to include path alias:
+  ```json
+  {
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      }
+    }
+  }
+  ```
+  This is required because shadcn init reads tsconfig.json to configure import aliases
 
 ## Development Workflow
 
