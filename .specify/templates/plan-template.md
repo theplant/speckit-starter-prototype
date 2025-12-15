@@ -20,11 +20,14 @@
 **Language/Version**: TypeScript (strict mode)  
 **Package Manager**: pnpm  
 **Primary Dependencies**: React, Vite, React Router, shadcn/ui, Tailwind CSS, Lucide  
-**Storage**: Browser localStorage (no backend API)  
+**Storage**: Browser localStorage via Service Worker (OpenAPI-compatible)  
+**API Layer**: OpenAPI 3.0+ spec with Service Worker mock backend  
+**Code Generation**: `openapi-typescript` for types, `openapi-fetch` for typed client  
 **Testing**: Playwright E2E tests only  
 **Target Platform**: Web browser (clickable prototype)  
 **Project Type**: Single frontend application  
-**Constraints**: Prototype only - localStorage for all data persistence
+**Constraints**: Prototype uses real HTTP fetch - localStorage served via Service Worker for easy backend migration  
+**AI Restriction**: AI agents MUST NOT edit files in `src/api/generated/` - regenerate from OpenAPI spec instead
 
 ## Constitution Check
 
@@ -56,11 +59,16 @@ specs/[###-feature]/
 
 ```text
 src/
-├── types/         # TypeScript interfaces for data entities
-├── hooks/         # Custom hooks (useLocalStorage, etc.)
+├── api/           # OpenAPI spec, client, and Service Worker mock
+│   ├── openapi.yaml   # OpenAPI 3.0+ specification (deliverable for backend)
+│   ├── generated/     # Generated files - DO NOT EDIT (AI must not modify)
+│   │   └── schema.d.ts  # Generated types from openapi-typescript
+│   ├── client.ts      # Typed API client using openapi-fetch
+│   └── worker.ts      # Service Worker that mocks backend via localStorage
+├── hooks/         # Custom hooks wrapping typed API client
 ├── components/    # Reusable UI components (shadcn/ui based)
 ├── pages/         # Route-level components
-├── lib/           # Utilities (storage.ts, etc.)
+├── lib/           # Utilities (storage.ts for worker, etc.)
 └── data/          # Seed data for demo/testing
 
 tests/

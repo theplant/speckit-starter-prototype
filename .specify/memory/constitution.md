@@ -1,22 +1,25 @@
 <!--
-SYNC IMPACT REPORT - 2025-12-13
+SYNC IMPACT REPORT - 2025-12-15
 ================================
-Version change: 2.0.0 → 2.1.0 (MINOR)
+Version change: 2.2.0 → 2.3.0 (MINOR)
 
 Modified Principles:
-- Fixed duplicate Principle III numbering (Root Cause Tracing → III, Local Storage → IV)
-- Renumbered: Component-Driven UI → V, State Management → VI, Simplicity → VII
+- Principle IX (OpenAPI-First API Architecture): Added code generation requirements
+  - Added openapi-typescript for type generation
+  - Added openapi-fetch for typed API client
+  - Added NON-NEGOTIABLE rule: AI must not edit generated files
+  - Updated code organization with generated types location
 
 Added Sections:
-- Principle VIII: Acceptance Scenario Coverage (Spec-to-Test Mapping)
+- None
 
 Removed Sections:
 - None
 
 Templates Updated:
-- ✅ plan-template.md - No changes needed
-- ✅ tasks-template.md - Verified scenario ID naming convention
-- ✅ spec-template.md - No changes needed (already has acceptance scenarios)
+- ✅ plan-template.md - Updated to include code generation step
+- ✅ tasks-template.md - Updated with code generation tasks
+- ✅ spec-template.md - No changes needed
 
 Follow-up TODOs: None
 ================================
@@ -145,15 +148,22 @@ When problems occur during development, root cause analysis MUST be performed be
 - AI agents MUST document the root cause analysis process
 - AI agents MUST update tests to prevent regression of root causes
 
-### IV. Local Storage Data Layer
+### IV. Local Storage Data Layer (Browser Worker Backend)
 
-All data persistence MUST use browser localStorage. This is a clickable prototype - no backend API integration.
+All data persistence MUST use browser localStorage, served via a browser worker that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
 
 **Data Storage Rules**
 - All data MUST be stored in localStorage with JSON serialization
 - Each data entity type MUST have its own localStorage key (e.g., `prototype_users`, `prototype_projects`)
-- Data operations MUST be synchronous and immediate
+- Data operations MUST be synchronous and immediate within the worker
 - CRUD operations MUST update localStorage directly
+
+**Browser Worker Architecture**
+- A Service Worker or Web Worker MUST intercept HTTP fetch requests
+- Worker MUST respond to requests matching the OpenAPI spec format
+- Worker MUST read/write localStorage to fulfill requests
+- Worker MUST return proper HTTP status codes and JSON responses
+- This enables the frontend to use real `fetch()` calls that work identically with a real backend
 
 **Type Safety Requirements**
 - Define TypeScript interfaces for all data entities in `src/types/`
@@ -225,6 +235,68 @@ Every user scenario in specifications MUST have corresponding automated tests.
 - [ ] Test validates complete "Then" clause, not partial behavior
 - [ ] Traceability matrix is up to date (optional but recommended)
 
+### IX. OpenAPI-First API Architecture (Backend-Ready Design)
+
+All data access MUST go through an API layer defined by OpenAPI specification. This ensures the prototype can be easily migrated to a real backend.
+
+**OpenAPI Specification Requirements**
+- An OpenAPI 3.0+ spec MUST be defined in `src/api/openapi.yaml` (or `.json`)
+- All API endpoints MUST be documented in the OpenAPI spec before implementation
+- Request/response schemas MUST be defined in the OpenAPI spec
+- The spec MUST be complete enough to hand to backend developers for implementation
+
+**Code Generation (NON-NEGOTIABLE)**
+- TypeScript types MUST be generated from OpenAPI spec using `openapi-typescript`
+- Install: `pnpm add -D openapi-typescript`
+- Generate: `npx openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts`
+- Add npm script: `"api:generate": "openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts"`
+- Generated files MUST be in `src/api/generated/` directory
+- **AI agents MUST NOT directly edit files in `src/api/generated/`** - regenerate from OpenAPI spec instead
+- Run `pnpm api:generate` after any OpenAPI spec changes
+
+**Typed API Client (openapi-fetch)**
+- Use `openapi-fetch` for type-safe API calls: `pnpm add openapi-fetch`
+- Create client in `src/api/client.ts` using generated types:
+  ```typescript
+  import createClient from 'openapi-fetch';
+  import type { paths } from './generated/schema';
+  
+  export const api = createClient<paths>({ baseUrl: '/api' });
+  ```
+- All API calls MUST use the typed client (e.g., `api.GET('/users/{id}', { params: { path: { id } } })`)
+- React hooks MUST wrap typed client calls, NOT raw fetch
+
+**HTTP Fetch Pattern (NON-NEGOTIABLE)**
+- Frontend code MUST use `openapi-fetch` client for all data operations
+- Fetch calls MUST use proper HTTP methods (GET, POST, PUT, DELETE)
+- Fetch calls MUST use proper URL paths matching OpenAPI spec (e.g., `/api/users`, `/api/projects/{id}`)
+- NO direct localStorage access from React components - all data MUST flow through API client
+
+**Browser Worker Implementation**
+- A Service Worker MUST intercept fetch requests to `/api/*` endpoints
+- Worker MUST parse requests according to OpenAPI spec format
+- Worker MUST read/write localStorage to fulfill the request
+- Worker MUST return proper HTTP responses (status codes, headers, JSON body)
+- Worker implementation lives in `src/api/worker.ts` (or `src/api/mock-server.ts`)
+
+**Backend Migration Path**
+- To migrate to real backend: disable Service Worker, update `baseUrl` in client
+- OpenAPI spec serves as contract for backend implementation
+- No frontend code changes required beyond configuration
+- Backend team receives complete OpenAPI spec with all endpoints documented
+
+**Rationale**: By using real HTTP fetch patterns with a browser worker mock, the prototype behaves identically to a production app with a real backend. Code generation ensures types stay in sync with the API contract. The `openapi-fetch` library provides compile-time type safety for all API calls. This eliminates the common problem of prototypes that "work" but require complete rewrites when connecting to real APIs.
+
+**Code Organization**:
+```
+src/api/
+├── openapi.yaml          # OpenAPI 3.0+ specification (source of truth)
+├── generated/            # Generated files - DO NOT EDIT
+│   └── schema.d.ts       # Generated types from openapi-typescript
+├── client.ts             # Typed API client using openapi-fetch
+└── worker.ts             # Service Worker that mocks backend
+```
+
 ## Technology Stack
 
 **Core Framework:**
@@ -234,9 +306,13 @@ Every user scenario in specifications MUST have corresponding automated tests.
 - pnpm as package manager
 
 **Data Layer:**
-- Browser localStorage for data persistence
+- Browser localStorage for data persistence (via Service Worker)
+- OpenAPI 3.0+ specification for API contract
+- `openapi-typescript` for generating TypeScript types from OpenAPI spec
+- `openapi-fetch` for type-safe API client
+- Service Worker to intercept fetch and respond from localStorage
 - React Context for shared state
-- Custom hooks for localStorage operations
+- Custom hooks wrapping typed API client
 
 **UI Layer:**
 - Tailwind CSS for styling
@@ -264,13 +340,15 @@ Every user scenario in specifications MUST have corresponding automated tests.
 
 For each user story, tasks MUST be executed in this exact order:
 
-1. **Define Types**: Create TypeScript interfaces in `src/types/`
-2. **Write E2E Tests**: Create failing tests in `tests/e2e/`
-3. **Verify Tests Fail**: Run `pnpm test:e2e` - all new tests MUST fail
-4. **Implement Storage**: Create localStorage hooks/utilities
-5. **Implement Components**: Build UI components consuming hooks
-6. **Verify Tests Pass**: Run full test suite - all tests MUST pass
-7. **Refactor**: Clean up code while keeping tests green
+1. **Define OpenAPI Spec**: Add endpoints/schemas to `src/api/openapi.yaml`
+2. **Generate Types**: Run `pnpm api:generate` to regenerate TypeScript types
+3. **Write E2E Tests**: Create failing tests in `tests/e2e/`
+4. **Verify Tests Fail**: Run `pnpm test:e2e` - all new tests MUST fail
+5. **Implement Worker Handlers**: Add localStorage handlers in `src/api/worker.ts`
+6. **Implement Hooks**: Create hooks wrapping typed API client
+7. **Implement Components**: Build UI components consuming hooks
+8. **Verify Tests Pass**: Run full test suite - all tests MUST pass
+9. **Refactor**: Clean up code while keeping tests green
 
 **⚠️ VIOLATION**: Implementing code before tests exist is a constitution violation.
 
@@ -278,11 +356,16 @@ For each user story, tasks MUST be executed in this exact order:
 
 ```
 src/
-├── types/         # TypeScript interfaces for data entities
-├── hooks/         # Custom hooks (useLocalStorage, etc.)
+├── api/           # API layer
+│   ├── openapi.yaml      # OpenAPI spec (source of truth)
+│   ├── generated/        # Generated files - DO NOT EDIT
+│   │   └── schema.d.ts   # Generated types
+│   ├── client.ts         # Typed API client
+│   └── worker.ts         # Service Worker mock backend
+├── hooks/         # Custom hooks wrapping API client
 ├── components/    # Reusable UI components
 ├── pages/         # Route-level components
-├── lib/           # Utilities (storage.ts, etc.)
+├── lib/           # Utilities (storage.ts for worker, etc.)
 └── data/          # Seed data for demo/testing
 tests/
 └── e2e/           # End-to-end user journey tests (Playwright)
@@ -292,9 +375,11 @@ tests/
 
 - All tests MUST pass before merge
 - Type checking MUST pass (`tsc --noEmit`)
+- Generated types MUST be up-to-date (`pnpm api:generate` produces no changes)
 - Linting MUST pass (ESLint)
 - Format MUST be consistent (Prettier)
 - No `any` types without explicit justification
+- AI agents MUST NOT edit files in `src/api/generated/`
 
 
 
@@ -320,4 +405,4 @@ This constitution supersedes all other development practices for this clickable 
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
 
-**Version**: 2.1.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-13
+**Version**: 2.3.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-15

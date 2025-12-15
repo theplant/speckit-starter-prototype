@@ -21,13 +21,20 @@ description: "Task list template for feature implementation"
 ## Path Conventions
 
 - **Source**: `src/` at repository root
-- **Types**: `src/types/` for TypeScript interfaces
-- **Hooks**: `src/hooks/` for custom hooks (useLocalStorage, etc.)
+- **API Layer**: `src/api/` for OpenAPI spec, client, and Service Worker
+  - `src/api/openapi.yaml` - OpenAPI 3.0+ specification (deliverable for backend)
+  - `src/api/generated/` - Generated files - **AI MUST NOT EDIT** (regenerate from spec)
+  - `src/api/generated/schema.d.ts` - Generated types from openapi-typescript
+  - `src/api/client.ts` - Typed API client using openapi-fetch
+  - `src/api/worker.ts` - Service Worker that mocks backend via localStorage
+- **Hooks**: `src/hooks/` for custom hooks wrapping typed API client
 - **Components**: `src/components/` for reusable UI components
 - **Pages**: `src/pages/` for route-level components
-- **Utilities**: `src/lib/` for helpers (storage.ts, etc.)
+- **Utilities**: `src/lib/` for helpers (storage.ts for worker, etc.)
 - **Seed Data**: `src/data/` for demo/testing data
 - **E2E Tests**: `tests/e2e/` for Playwright tests only
+
+**Code Generation**: Run `pnpm api:generate` after any OpenAPI spec changes
 
 <!-- 
   ============================================================================
@@ -66,11 +73,16 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Create localStorage wrapper in `src/lib/storage.ts` with logging for test mode
-- [ ] T007 [P] Define base TypeScript interfaces in `src/types/`
-- [ ] T008 [P] Setup React Router with base routes in `src/App.tsx`
-- [ ] T009 [P] Create seed data utilities in `src/data/`
-- [ ] T010 Configure Playwright to use port 5199 and list reporter
+- [ ] T006 Install API dependencies: `pnpm add openapi-fetch && pnpm add -D openapi-typescript`
+- [ ] T007 Create OpenAPI spec in `src/api/openapi.yaml` defining all endpoints
+- [ ] T008 Add npm script: `"api:generate": "openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts"`
+- [ ] T009 Generate types: `pnpm api:generate` (creates `src/api/generated/schema.d.ts` - DO NOT EDIT)
+- [ ] T010 Create typed API client in `src/api/client.ts` using openapi-fetch
+- [ ] T011 Create Service Worker in `src/api/worker.ts` to mock backend via localStorage
+- [ ] T012 [P] Create localStorage wrapper in `src/lib/storage.ts` for worker use
+- [ ] T013 [P] Setup React Router with base routes in `src/App.tsx`
+- [ ] T014 [P] Create seed data utilities in `src/data/`
+- [ ] T015 Configure Playwright to use port 5199 and list reporter
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
