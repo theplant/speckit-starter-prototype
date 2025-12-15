@@ -21,18 +21,22 @@ description: "Task list template for feature implementation"
 ## Path Conventions
 
 - **Source**: `src/` at repository root
-- **API Layer**: `src/api/` for OpenAPI spec, client, and Service Worker
+- **API Layer**: `src/api/` for OpenAPI spec, client, and generated types
   - `src/api/openapi.yaml` - OpenAPI 3.0+ specification (deliverable for backend)
   - `src/api/generated/` - Generated files - **AI MUST NOT EDIT** (regenerate from spec)
   - `src/api/generated/schema.d.ts` - Generated types from openapi-typescript
   - `src/api/client.ts` - Typed API client using openapi-fetch
-  - `src/api/worker.ts` - Service Worker that mocks backend via localStorage
+- **MSW Mocks**: `src/mocks/` for Mock Service Worker handlers
+  - `src/mocks/handlers.ts` - MSW request handlers (reads/writes localStorage)
+  - `src/mocks/browser.ts` - MSW browser worker setup
 - **Hooks**: `src/hooks/` for custom hooks wrapping typed API client
 - **Components**: `src/components/` for reusable UI components
 - **Pages**: `src/pages/` for route-level components
-- **Utilities**: `src/lib/` for helpers (storage.ts for worker, etc.)
+- **Utilities**: `src/lib/` for helpers (storage.ts, etc.)
 - **Seed Data**: `src/data/` for demo/testing data
 - **E2E Tests**: `tests/e2e/` for Playwright tests only
+  - `tests/e2e/utils/` - Test utilities (console error capture, etc.)
+  - `tests/e2e/infrastructure.spec.ts` - Infrastructure verification tests
 
 **Code Generation**: Run `pnpm api:generate` after any OpenAPI spec changes
 
@@ -59,11 +63,23 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project with `pnpm create vite@latest . --template react-ts`
+**⚠️ IMPORTANT**: NEVER manually create config files that CLI tools generate (e.g., `tailwind.config.js`, `postcss.config.js`, `components.json`). Let CLI tools generate them.
+**⚠️ IMPORTANT**: Keep the below T001 exactly as it is.
+- [ ] T001 Create Vite project in current folder (non-interactive): `pnpm create vite@latest ./app --template react-ts --no-interactive && mv ./app/{.,}* . 2>/dev/null; rm -rf app`
 - [ ] T002 Install dependencies: `pnpm add react-router-dom lucide-react`
-- [ ] T003 [P] Initialize Tailwind CSS: `pnpm dlx tailwindcss init -p`
-- [ ] T004 [P] Initialize shadcn/ui: `pnpm dlx shadcn@latest init --defaults`
-- [ ] T005 [P] Configure Playwright: `pnpm create playwright --yes`
+- [ ] T003 Update `tsconfig.json` to add path alias (required before shadcn init):
+  ```json
+  {
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      }
+    }
+  }
+  ```
+- [ ] T004 Initialize shadcn/ui: `pnpm dlx shadcn@latest init --defaults`
+- [ ] T005 Configure Playwright: `pnpm create playwright`
 
 ---
 
@@ -73,16 +89,50 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
+### API Layer Setup
+
 - [ ] T006 Install API dependencies: `pnpm add openapi-fetch && pnpm add -D openapi-typescript`
 - [ ] T007 Create OpenAPI spec in `src/api/openapi.yaml` defining all endpoints
 - [ ] T008 Add npm script: `"api:generate": "openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts"`
 - [ ] T009 Generate types: `pnpm api:generate` (creates `src/api/generated/schema.d.ts` - DO NOT EDIT)
 - [ ] T010 Create typed API client in `src/api/client.ts` using openapi-fetch
-- [ ] T011 Create Service Worker in `src/api/worker.ts` to mock backend via localStorage
-- [ ] T012 [P] Create localStorage wrapper in `src/lib/storage.ts` for worker use
-- [ ] T013 [P] Setup React Router with base routes in `src/App.tsx`
-- [ ] T014 [P] Create seed data utilities in `src/data/`
-- [ ] T015 Configure Playwright to use port 5199 and list reporter
+
+### MSW Mock Backend Setup
+
+- [ ] T011 Install MSW: `pnpm add -D msw`
+- [ ] T012 Initialize MSW: `pnpm dlx msw init public/ --save`
+- [ ] T013 Create MSW handlers in `src/mocks/handlers.ts` (reads/writes localStorage)
+- [ ] T014 Create MSW browser setup in `src/mocks/browser.ts`
+- [ ] T015 Update `src/main.tsx` to start MSW in dev mode before rendering app:
+  ```typescript
+  async function enableMocking() {
+    if (import.meta.env.DEV) {
+      const { worker } = await import('./mocks/browser');
+      return worker.start({ onUnhandledRequest: 'bypass' });
+    }
+  }
+  enableMocking().then(() => { /* render app */ });
+  ```
+
+### Storage & Routing
+
+- [ ] T016 [P] Create localStorage wrapper in `src/lib/storage.ts` with logging for test mode
+- [ ] T017 [P] Setup React Router with base routes in `src/App.tsx`
+- [ ] T018 [P] Create seed data utilities in `src/data/`
+
+### Playwright Configuration
+
+- [ ] T019 Configure Playwright in `playwright.config.ts`:
+  - Use `chromium` project only
+  - Set `baseURL: 'http://localhost:5173'`
+  - Set `actionTimeout: 1000` (1 second - fail fast)
+  - Set `timeout: 10000` (10 seconds overall)
+  - Use `reporter: 'list'` for AI-parseable output
+  - Omit `webServer` config (dev server started separately)
+- [ ] T020 Create test utilities in `tests/e2e/utils/`:
+  - Console error capture utility
+  - HTML dump on failure fixture
+- [ ] T021 Create `tests/e2e/infrastructure.spec.ts` with console error capture verification test
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

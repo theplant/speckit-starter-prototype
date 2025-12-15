@@ -20,13 +20,13 @@
 **Language/Version**: TypeScript (strict mode)  
 **Package Manager**: pnpm  
 **Primary Dependencies**: React, Vite, React Router, shadcn/ui, Tailwind CSS, Lucide  
-**Storage**: Browser localStorage via Service Worker (OpenAPI-compatible)  
-**API Layer**: OpenAPI 3.0+ spec with Service Worker mock backend  
+**Storage**: Browser localStorage via MSW (Mock Service Worker)  
+**API Layer**: OpenAPI 3.0+ spec with MSW mock backend  
 **Code Generation**: `openapi-typescript` for types, `openapi-fetch` for typed client  
-**Testing**: Playwright E2E tests only  
+**Testing**: Playwright E2E tests only (1s action timeout, HTML dump on failure)  
 **Target Platform**: Web browser (clickable prototype)  
 **Project Type**: Single frontend application  
-**Constraints**: Prototype uses real HTTP fetch - localStorage served via Service Worker for easy backend migration  
+**Constraints**: Prototype uses real HTTP fetch - localStorage served via MSW for easy backend migration  
 **AI Restriction**: AI agents MUST NOT edit files in `src/api/generated/` - regenerate from OpenAPI spec instead
 
 ## Constitution Check
@@ -59,20 +59,23 @@ specs/[###-feature]/
 
 ```text
 src/
-├── api/           # OpenAPI spec, client, and Service Worker mock
+├── api/           # OpenAPI spec, client, and generated types
 │   ├── openapi.yaml   # OpenAPI 3.0+ specification (deliverable for backend)
 │   ├── generated/     # Generated files - DO NOT EDIT (AI must not modify)
 │   │   └── schema.d.ts  # Generated types from openapi-typescript
-│   ├── client.ts      # Typed API client using openapi-fetch
-│   └── worker.ts      # Service Worker that mocks backend via localStorage
+│   └── client.ts      # Typed API client using openapi-fetch
+├── mocks/         # MSW (Mock Service Worker) handlers
+│   ├── handlers.ts    # Request handlers (reads/writes localStorage)
+│   └── browser.ts     # MSW browser worker setup
 ├── hooks/         # Custom hooks wrapping typed API client
 ├── components/    # Reusable UI components (shadcn/ui based)
 ├── pages/         # Route-level components
-├── lib/           # Utilities (storage.ts for worker, etc.)
+├── lib/           # Utilities (storage.ts, etc.)
 └── data/          # Seed data for demo/testing
 
 tests/
 └── e2e/           # Playwright E2E tests only
+    └── utils/         # Test utilities (console capture, HTML dump)
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real

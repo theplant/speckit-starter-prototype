@@ -428,7 +428,7 @@ src/api/
 
 - To create Vite project in current non-empty folder without prompts:
   ```bash
-  pnpm create vite@latest ./app --template react-ts --no-interactive && mv ./app/{.,}* . && rm -d app
+  pnpm create vite@latest ./app --template react-ts --no-interactive && mv ./app/{.,}* . 2>/dev/null; mv ./app/* . 2>/dev/null; rm -rf app
   ```
 
 - Before running `pnpm dlx shadcn@latest init --defaults`, update root `tsconfig.json` to include path alias:
