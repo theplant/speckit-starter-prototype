@@ -1,14 +1,12 @@
 <!--
 SYNC IMPACT REPORT - 2025-12-15
 ================================
-Version change: 2.2.0 → 2.3.0 (MINOR)
+Version change: 2.3.0 → 2.3.1 (PATCH)
 
 Modified Principles:
-- Principle IX (OpenAPI-First API Architecture): Added code generation requirements
-  - Added openapi-typescript for type generation
-  - Added openapi-fetch for typed API client
-  - Added NON-NEGOTIABLE rule: AI must not edit generated files
-  - Updated code organization with generated types location
+- Principle I (E2E Testing Discipline): Added Page Error Check requirement
+  - Tests MUST check page HTML for error indicators before any interactions
+  - Catches React error boundaries, server errors, and crash screens early
 
 Added Sections:
 - None
@@ -17,8 +15,8 @@ Removed Sections:
 - None
 
 Templates Updated:
-- ✅ plan-template.md - Updated to include code generation step
-- ✅ tasks-template.md - Updated with code generation tasks
+- ✅ plan-template.md - No changes needed
+- ✅ tasks-template.md - No changes needed
 - ✅ spec-template.md - No changes needed
 
 Follow-up TODOs: None
@@ -98,6 +96,36 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Each test MUST have at least one assertion that directly validates the described behavior
 - Example violation: `test('should display activities')` with only `expect(header).toBeVisible()` - this tests the header, not activities
 - Example correct: `test('should display activities')` with `expect(activityItems.count()).toBeGreaterThan(0)`
+
+**Page Error Check (NON-NEGOTIABLE)**
+- Upon arriving at any target page, tests MUST immediately check the page HTML for error indicators BEFORE any clicks or interactions
+- Tests MUST check for common error patterns:
+  - React error boundaries (e.g., "Something went wrong", "Error boundary")
+  - Server error messages (e.g., "500", "Internal Server Error")
+  - Application crash screens or blank pages with error text
+  - Missing required elements that indicate page failed to render
+- Create a reusable utility function `assertNoPageErrors(page)` in `tests/e2e/utils/`
+- This utility MUST be called after every `page.goto()` and after navigation events
+- If error indicators are found, test MUST fail immediately with descriptive message
+- This catches rendering failures early before wasting time on interactions that will fail
+- Example implementation:
+  ```typescript
+  async function assertNoPageErrors(page: Page) {
+    const html = await page.content();
+    const errorPatterns = [
+      /error boundary/i,
+      /something went wrong/i,
+      /internal server error/i,
+      /500/,
+      /uncaught error/i,
+    ];
+    for (const pattern of errorPatterns) {
+      if (pattern.test(html)) {
+        throw new Error(`Page error detected: ${pattern}`);
+      }
+    }
+  }
+  ```
 
 ### II. Spec Evolution and Test Maintenance
 
@@ -405,4 +433,4 @@ This constitution supersedes all other development practices for this clickable 
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
 
-**Version**: 2.3.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-15
+**Version**: 2.3.1 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-15
