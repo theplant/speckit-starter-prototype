@@ -59,30 +59,44 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Playwright MUST use only the `'list'` reporter for clean, parseable AI output
 
 **Console Error Capture (NON-NEGOTIABLE)**
-- All browser console errors MUST be captured and output during test execution
-- React/JavaScript errors (e.g., context errors, runtime exceptions) MUST be visible in test output
-- Tests MUST listen to `page.on('console')` and `page.on('pageerror')` events
-- Console errors MUST be printed immediately when they occur, not just on test failure
-- This ensures application bugs (like missing context providers) are immediately visible
-- **All console errors MUST cause the test to fail** - a successful test MUST have zero console errors
-- Tests MUST collect console errors and assert that the error list is empty at test completion
+- All browser console errors MUST cause the test to **fail immediately** when they occur
+- Tests MUST listen to `page.on('console')` (filtering for `msg.type() === 'error'`) and `page.on('pageerror')` events in a `beforeEach` hook
+- Console errors MUST be logged to **stderr** (not console.log) using `process.stderr.write()`
+- Tests MUST NOT collect errors for later assertion - they MUST throw immediately to fail fast
 - When tests fail due to console errors, AI agents MUST apply Root Cause Tracing to fix the underlying issue
 
-**Console Error Capture Verification Test (NON-NEGOTIABLE)**
-- After E2E test infrastructure is ready, MUST write a dedicated test that verifies console error capture works
-- This test MUST intentionally trigger a console error and verify it is captured
-- Example test in `tests/e2e/infrastructure.spec.ts`:
+**Console Error Capture Implementation (NON-NEGOTIABLE)**
+- Example implementation in `tests/e2e/utils/test-helpers.ts`:
   ```typescript
-  test('should capture console errors', async ({ page }) => {
-    const errors = setupConsoleErrorCapture(page);
-    await page.goto('/');
-    // Intentionally trigger a console error
-    await page.evaluate(() => console.error('Test error for verification'));
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]).toContain('Test error for verification');
+  import { test as base, Page } from '@playwright/test';
+
+  export function setupConsoleErrorCapture(page: Page, failTest: (error: Error) => void): void {
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        process.stderr.write(`[Console Error] ${text}\n`);
+        failTest(new Error(`Console error: ${text}`));
+      }
+    });
+
+    page.on('pageerror', (error) => {
+      process.stderr.write(`[Page Error] ${error.message}\n`);
+      failTest(new Error(`Page error: ${error.message}`));
+    });
+  }
+
+  export const test = base.extend<{}>({});
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    setupConsoleErrorCapture(page, (error) => {
+      testInfo.annotations.push({ type: 'console-error', description: error.message });
+      throw error;
+    });
   });
+
+  export { expect } from '@playwright/test';
   ```
-- This ensures the error capture mechanism is working before relying on it for other tests
+- This approach ensures tests fail immediately on console errors without manual assertions
 
 **LocalStorage Transparency (NON-NEGOTIABLE)**
 - Create a simple wrapper (`src/lib/storage.ts`) for localStorage read/write operations
