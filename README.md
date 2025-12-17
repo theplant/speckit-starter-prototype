@@ -14,7 +14,24 @@ This repository provides a battle-tested constitution and templates for building
 
 ## Quick Start
 
-### Step 1: Initialize Your Project with Spec-Kit
+### One-Line Installation
+
+Run this command in your project directory to install everything automatically:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/theplant/speckit-starter-prototype/HEAD/install.sh)"
+```
+
+This will:
+1. Initialize spec-kit with Windsurf AI configuration
+2. Clone the prototype template
+3. Copy `.specify` and `.windsurf` folders to your project
+
+### Manual Installation
+
+If you prefer to install manually, follow these steps:
+
+#### Step 1: Initialize Your Project with Spec-Kit
 
 ```bash
 # Create and initialize your new project
@@ -24,7 +41,7 @@ uvx --from git+https://github.com/github/spec-kit.git specify init my-prototype
 cd my-prototype
 ```
 
-### Step 2: Overlay the Prototype Template
+#### Step 2: Overlay the Prototype Template
 
 ```bash
 git clone --depth 1 git@github.com:theplant/speckit-starter-prototype.git /tmp/speckit-starter-prototype-$$ && cp -r /tmp/speckit-starter-prototype-$$/.specify . && rm -rf /tmp/speckit-starter-prototype-$$
