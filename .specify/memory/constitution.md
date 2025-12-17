@@ -6,7 +6,7 @@ Version change: 2.8.0 → 2.8.1 (PATCH)
 Changes:
 - Added spec/ directory to Code Organization section
 - spec/ directory contains API specification documents (human-readable)
-- Added *0000-loyalty-console-api-cn*.md - for feature development
+- Added *.md - for feature development
 
 Rationale:
 - Documents the new spec/ directory for API specification documents
