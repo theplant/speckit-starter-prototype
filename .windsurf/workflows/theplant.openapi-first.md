@@ -393,6 +393,51 @@ To migrate to real backend:
 - OpenAPI spec MUST be validated before code generation
 - MSW handler paths MUST match OpenAPI spec paths exactly
 
+## Common Pitfalls When Refactoring to OpenAPI-First
+
+### Orval Does NOT Generate Zod Schemas
+
+Orval generates TypeScript types and React Query hooks, but NOT Zod schemas. If existing code uses Zod schemas for validation:
+
+```typescript
+// ❌ WRONG: Importing non-existent Zod schema from generated models
+import { taskSchema } from '@/api/generated/models'
+const task = taskSchema.parse(row.original)  // Runtime error!
+
+// ✅ CORRECT: Use TypeScript type and trust the data
+import type { Task } from '@/api/generated/models'
+const task = row.original as Task  // Or just use row.original directly
+```
+
+### Type-Only Imports for Generated Models
+
+When importing from generated models, prefer `import type` to make it clear these are types, not runtime values:
+
+```typescript
+// ✅ GOOD: Clear that this is a type import
+import type { User, Task, App } from '@/api/generated/models'
+
+// ⚠️ ACCEPTABLE: Works but less clear
+import { User, Task, App } from '@/api/generated/models'
+
+// ❌ BAD: Trying to import runtime values that don't exist
+import { userSchema, taskSchema } from '@/api/generated/models'  // These don't exist!
+```
+
+### Verify Imports After Refactoring
+
+After switching from local schemas to generated types, run TypeScript check to catch missing exports:
+
+```bash
+# ALWAYS run after refactoring imports
+pnpm tsc --noEmit
+
+# If you see "does not provide an export named 'X'" errors:
+# 1. Check what's actually exported: cat src/api/generated/models/index.ts
+# 2. Use type imports only, not runtime values
+# 3. Remove any Zod schema imports - they don't exist in generated code
+```
+
 ## AI Agent Requirements
 
 - AI agents MUST check if OpenAPI spec exists before generating code

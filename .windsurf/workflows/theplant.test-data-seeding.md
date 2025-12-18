@@ -256,6 +256,70 @@ const badProduct = { id: '1', name: 'Test', price: 99 };
 const goodProduct = createTestProduct('1', 'SKU-001', 'Test', 99);
 ```
 
+### Default Seed Data Interference (MSW Pattern)
+
+When using MSW with localStorage (not Zustand persist), the app may load default seed data on startup. Tests must overwrite this data:
+
+```typescript
+// ❌ BAD: Default seed data loads when navigating to '/', then test data is ignored
+await page.goto('/');
+await clearAllData(page);  // Clears data
+await page.goto('/products');  // App re-seeds default data!
+
+// ✅ GOOD: Seed test data AFTER page loads, then reload to clear React Query cache
+await page.goto('/');  // Initialize MSW and access localStorage
+await page.evaluate((products) => {
+  // Overwrite default seed data with test data
+  localStorage.setItem('iam-console-products', JSON.stringify(products));
+}, testProducts);
+await page.reload();  // Clear React Query cache
+await page.goto('/products');  // Now shows test data
+```
+
+### Recommended Helper Pattern for MSW + localStorage
+
+Create a `seedAndNavigate` helper that handles the correct sequence:
+
+```typescript
+// tests/e2e/utils/seed-helpers.ts
+export async function seedAndNavigate(
+  page: Page,
+  targetRoute: string,
+  data: { users?: User[]; tasks?: Task[]; apps?: App[] }
+): Promise<void> {
+  // 1. Navigate to app first to initialize MSW and access localStorage
+  await page.goto('/');
+
+  // 2. Seed test data (overwrites any default seed data)
+  await page.evaluate(({ data, keys }) => {
+    if (data.users !== undefined) {
+      localStorage.setItem(keys.USERS, JSON.stringify(data.users));
+    }
+    if (data.tasks !== undefined) {
+      localStorage.setItem(keys.TASKS, JSON.stringify(data.tasks));
+    }
+    if (data.apps !== undefined) {
+      localStorage.setItem(keys.APPS, JSON.stringify(data.apps));
+    }
+  }, { data, keys: STORAGE_KEYS });
+
+  // 3. Reload to clear React Query cache
+  await page.reload();
+
+  // 4. Navigate to target route
+  if (targetRoute !== '/') {
+    await page.goto(targetRoute);
+  }
+}
+
+// Usage in tests:
+test('should display seeded users', async ({ page }) => {
+  const testUsers = [createTestUser('1', 'johndoe', { status: 'active' })];
+  await seedAndNavigate(page, '/users', { users: testUsers });
+  await expect(page.getByText('johndoe', { exact: true })).toBeVisible();
+});
+```
+
 ## AI Agent Requirements
 
 - AI agents MUST use typed test data helpers (NOT inline objects)

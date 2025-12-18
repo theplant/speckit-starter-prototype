@@ -34,6 +34,9 @@ E2E tests catch real-world issues that unit tests cannot. Testing through the fu
 - All user interactions (buttons, forms, modals, navigation, CRUD) MUST be tested
 - All loading states and error states MUST be verified
 - Route parameters and query strings MUST be tested for edge cases
+- **BOTH read paths (data display) AND write paths (forms, mutations) MUST be tested**
+- Create, Update, Delete operations MUST have corresponding tests
+- Form validation (client-side errors) MUST be tested
 
 ### Test Independence (E2E-TESTING)
 
@@ -143,6 +146,37 @@ page.getByText('Submit')
 page.locator('.submit-btn')
 ```
 
+### 4.1 Selector Precision Rules (NON-NEGOTIABLE)
+
+**CRITICAL**: Avoid selectors that match multiple elements. Common pitfalls:
+
+| Problem | Example | Solution |
+|---------|---------|----------|
+| Username matches email | `getByText('johndoe')` matches both `johndoe` and `johndoe@example.com` | Use `getByText('johndoe', { exact: true })` |
+| Filter options with counts | `getByRole('option', { name: /active/i })` matches "Active 1" and "Inactive 1" | Use `getByRole('option', { name: /active/i }).first()` or more specific regex |
+| "Connected" vs "Not Connected" | `getByRole('option', { name: /connected/i })` matches both | Use `getByRole('option', { name: /^connected$/i })` with anchors |
+| Multiple headings | `getByRole('heading', { name: /tasks/i })` matches sidebar and page heading | Use more specific container or `first()` |
+
+```typescript
+// ❌ BAD: Matches multiple elements
+await page.getByText('activeuser').toBeVisible()  // Matches username AND email
+
+// ✅ GOOD: Exact match prevents partial matches
+await page.getByText('activeuser', { exact: true }).toBeVisible()
+
+// ❌ BAD: Regex matches "Active 1" and "Inactive 1"
+await page.getByRole('option', { name: /active/i }).click()
+
+// ✅ GOOD: Use first() when options show counts
+await page.getByRole('option', { name: /active/i }).first().click()
+
+// ❌ BAD: Matches "Connected" and "Not Connected"
+await page.getByRole('option', { name: /connected/i }).click()
+
+// ✅ GOOD: Anchor regex to match exact word
+await page.getByRole('option', { name: /^connected$/i }).click()
+```
+
 ### 5. Test Assertion Anti-Patterns (NON-NEGOTIABLE)
 
 NEVER use these patterns:
@@ -206,19 +240,30 @@ When tests fail, follow this diagnosis process:
 
 1. **"strict mode violation"** (multiple elements match)
    - Make selector more specific using `data-testid`
-   - Use `.first()` only if multiple matches are expected
+   - Use `{ exact: true }` for text selectors to prevent partial matches
+   - Use regex anchors (`/^text$/i`) for option/filter selectors
+   - Use `.first()` only if multiple matches are expected AND understood
 
 2. **"element not found"**
    - Check HTML dump for actual element attributes
    - Update selector to match actual attributes
+   - Check if default seed data is showing instead of test data (seeding issue)
 
 3. **"timeout"**
    - Check if page shows loading state → add explicit wait
    - Check if page shows error boundary → fix application crash first
+   - Check if page shows 500 error → look for missing module exports or runtime errors
 
 4. **Console error captured**
    - Fix application error first, then re-run test
    - Do NOT modify test to ignore the error
+   - Common cause: importing non-existent exports from generated files (e.g., `taskSchema` when Orval doesn't generate Zod schemas)
+
+5. **500 Error Page showing**
+   - Check console error for specific module/export errors
+   - Verify all imports from `@/api/generated/models` actually exist
+   - Orval generates TypeScript types, NOT Zod schemas - use `type` imports only
+   - Run `pnpm tsc --noEmit` to catch import errors before running tests
 
 ## Quality Gates
 
