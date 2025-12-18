@@ -26,7 +26,15 @@ Templates Updated:
 - ✅ tasks-template.md - No changes needed
 - ✅ spec-template.md - No changes needed
 
-Follow-up TODOs: None
+Previous Changes (v2.8.0):
+- Updated Technology Stack with specific version numbers from loyalty-console
+- Added detailed Code Organization reflecting actual project structure
+- Added features/ directory structure with all domain modules
+- Added TanStack Router, TanStack Table, Recharts, Zustand to tech stack
+- Added React Hook Form + Zod for forms
+- Added Sonner, cmdk to UI layer
+- Updated specs/ directory location for OpenAPI spec
+- Added E2E test file examples
 ================================
 -->
 
@@ -39,33 +47,39 @@ Follow-up TODOs: None
 All testing MUST be done exclusively with Playwright end-to-end tests.
 
 **Testing Approach**
+
 - Every feature MUST have corresponding E2E tests before it is considered complete
 - Tests MUST simulate real user behavior through the browser
 - Tests MUST cover the full user journey, not isolated components
 - No unit tests, no integration tests in isolation
 
 **Coverage Requirements**
+
 - All routes (public, error) MUST have E2E test coverage
 - All user interactions (buttons, forms, modals, navigation, CRUD) MUST be tested
 - All loading states and error states MUST be verified
 - Route parameters and query strings MUST be tested for edge cases
 
 **Local Storage Data**
+
 - All data persistence MUST use browser localStorage
 - Tests MUST be able to seed localStorage with test data
 - Tests MUST clear localStorage before each test run for isolation
 
 **Test Independence**
+
 - Tests MUST NOT depend on execution order of other tests
 - Tests MUST clean up any data they create (or use isolated test data)
 - Tests MUST be able to run in parallel without conflicts
 
 **AI-Driven Execution**
+
 - Tests MUST run non-interactively without waiting for human review
 - The test-fix cycle MUST be autonomous: run tests → read errors → fix code → re-run
 - Playwright MUST use only the `'list'` reporter for clean, parseable AI output
 
 **Console Error Capture (NON-NEGOTIABLE)**
+
 - All browser console errors MUST cause the test to **fail immediately** when they occur
 - Tests MUST listen to `page.on('console')` (filtering for `msg.type() === 'error'`) and `page.on('pageerror')` events in a `beforeEach` hook
 - Console errors MUST be logged to **stderr** (not console.log) using `process.stderr.write()`
@@ -73,44 +87,55 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - When tests fail due to console errors, AI agents MUST apply Root Cause Tracing to fix the underlying issue
 
 **Console Error Capture Implementation (NON-NEGOTIABLE)**
-- Example implementation in `tests/e2e/utils/test-helpers.ts`:
-  ```typescript
-  import { test as base, Page } from '@playwright/test';
 
-  export function setupConsoleErrorCapture(page: Page, failTest: (error: Error) => void): void {
+- Example implementation in `tests/e2e/utils/test-helpers.ts`:
+
+  ```typescript
+  import { test as base, Page } from '@playwright/test'
+
+  export function setupConsoleErrorCapture(
+    page: Page,
+    failTest: (error: Error) => void
+  ): void {
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
-        const text = msg.text();
-        process.stderr.write(`[Console Error] ${text}\n`);
-        failTest(new Error(`Console error: ${text}`));
+        const text = msg.text()
+        process.stderr.write(`[Console Error] ${text}\n`)
+        failTest(new Error(`Console error: ${text}`))
       }
-    });
+    })
 
     page.on('pageerror', (error) => {
-      process.stderr.write(`[Page Error] ${error.message}\n`);
-      failTest(new Error(`Page error: ${error.message}`));
-    });
+      process.stderr.write(`[Page Error] ${error.message}\n`)
+      failTest(new Error(`Page error: ${error.message}`))
+    })
   }
 
-  export const test = base.extend<{}>({});
+  export const test = base.extend<{}>({})
 
   test.beforeEach(async ({ page }, testInfo) => {
     setupConsoleErrorCapture(page, (error) => {
-      testInfo.annotations.push({ type: 'console-error', description: error.message });
-      throw error;
-    });
-  });
+      testInfo.annotations.push({
+        type: 'console-error',
+        description: error.message,
+      })
+      throw error
+    })
+  })
 
-  export { expect } from '@playwright/test';
+  export { expect } from '@playwright/test'
   ```
+
 - This approach ensures tests fail immediately on console errors without manual assertions
 
 **LocalStorage Transparency (NON-NEGOTIABLE)**
+
 - Create a simple wrapper (`src/lib/storage.ts`) for localStorage read/write operations
 - Wrapper MUST log key and value on every read/write when running in test mode
 - This enables AI agents to see data flow when debugging test failures
 
 **Configuration**
+
 - Playwright MUST only include the `chromium` project (no Firefox/WebKit)
 - Playwright MUST NOT start its own dev server - tests MUST connect to an existing, separately running dev server
 - The dev server MUST be started manually before running tests (e.g., `pnpm dev` in a separate terminal)
@@ -121,6 +146,7 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Test utilities MUST be in `tests/e2e/utils/`
 
 **Operation Timeout with HTML Dump (NON-NEGOTIABLE)**
+
 - Playwright action timeout MUST be set to 1 second (`actionTimeout: 1000` in config)
 - This ensures tests fail fast when elements are not found or page is broken
 - On timeout failure, the page HTML MUST be dumped immediately for AI inspection
@@ -133,27 +159,38 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
     use: {
       actionTimeout: 1000,
     },
-  });
+  })
   ```
 - Example test fixture for HTML dump on failure:
   ```typescript
   test.afterEach(async ({ page }, testInfo) => {
     if (testInfo.status !== 'passed') {
-      const html = await page.content();
-      console.log('=== PAGE HTML ON FAILURE ===');
-      console.log(html);
-      console.log('=== END PAGE HTML ===');
+      const html = await page.content()
+      console.log('=== PAGE HTML ON FAILURE ===')
+      console.log(html)
+      console.log('=== END PAGE HTML ===')
     }
-  });
+  })
   ```
 - This approach replaces manual `assertNoPageErrors()` calls - the fast timeout + HTML dump provides equivalent debugging information automatically
 
 **Quality Gates**
+
 - All E2E tests MUST pass before merge
 - New routes/interactions MUST have corresponding E2E tests
 - No flaky tests allowed - tests MUST be deterministic
 
+**TypeScript and Test Integrity (NON-NEGOTIABLE)**
+
+- NEVER ignore TypeScript type checking errors - all code MUST pass `tsc` without errors
+- tsconfig MUST NOT use `exclude` to skip files with type errors - fix the errors instead
+- Tests written based on business code MUST NOT be simplified just to make them pass
+- If a test fails, trace the root cause and fix the underlying issue, not the test
+- Generated code with type errors MUST be fixed at the source (OpenAPI spec) and regenerated
+- Workarounds that hide type errors (like `as unknown as Type`) are forbidden
+
 **Test Description Alignment (NON-NEGOTIABLE)**
+
 - Test expectations MUST directly verify what the test description claims to test
 - If a test is named "should display activities", it MUST assert that activities are visible, not just a header
 - Test descriptions are contracts - the assertions MUST fulfill that contract
@@ -465,6 +502,7 @@ await page.waitForResponse(resp => resp.url().includes('/api/data'));
 When new specifications are written that conflict with previous specs, the following rules apply:
 
 **Spec Conflict Resolution**
+
 - New specs take precedence over old specs for the same feature area
 - Old tests MUST be updated to match new specs, NOT the other way around
 - Tests MUST NOT be skipped to avoid fixing them - use Root Cause Tracing instead
@@ -472,6 +510,7 @@ When new specifications are written that conflict with previous specs, the follo
 - Tests from old specs that no longer apply MUST be deleted or rewritten
 
 **Test Fix Discipline**
+
 - NEVER use `test.skip()` to avoid fixing a complicated test
 - ALWAYS trace the root cause of test failures before implementing fixes
 - When UI changes break tests, update test selectors and assertions to match new UI
@@ -483,6 +522,7 @@ When new specifications are written that conflict with previous specs, the follo
 ### III. Root Cause Tracing (Debugging Discipline)
 
 When problems occur during development, root cause analysis MUST be performed before implementing fixes:
+
 - Problems MUST be traced backward through the call chain to find the original trigger
 - Symptoms MUST be distinguished from root causes
 - Fixes MUST address the source of the problem, NOT work around symptoms
@@ -495,6 +535,7 @@ When problems occur during development, root cause analysis MUST be performed be
 **Rationale**: Superficial fixes create technical debt and hide underlying architectural problems. Root cause analysis ensures problems are solved at their source, preventing recurrence and maintaining system integrity. This discipline transforms debugging from firefighting into systematic problem-solving that improves overall code quality.
 
 **Debugging Process**:
+
 1. **Reproduce**: Create reliable reproduction case
 2. **Observe**: Gather evidence through logs, debugger, tests
 3. **Hypothesize**: Form theories about root cause
@@ -502,12 +543,6 @@ When problems occur during development, root cause analysis MUST be performed be
 5. **Fix**: Implement fix addressing root cause
 6. **Verify**: Ensure fix works and doesn't break existing functionality
 7. **Document**: Update docs/tests to prevent regression
-
-**AI Implementation Requirement**:
-- AI agents MUST perform root cause analysis before implementing fixes
-- AI agents MUST NOT implement superficial workarounds
-- AI agents MUST document the root cause analysis process
-- AI agents MUST update tests to prevent regression of root causes
 
 **No-Give-Up Rule (NON-NEGOTIABLE)**
 AI agents MUST NEVER abandon a problem by:
@@ -540,17 +575,60 @@ Instead, AI agents MUST:
     6. Verify: Tests now pass"
 ```
 
+**AI Implementation Requirement**:
+
+- AI agents MUST perform root cause analysis before implementing fixes
+- AI agents MUST NOT implement superficial workarounds
+- AI agents MUST document the root cause analysis process
+- AI agents MUST update tests to prevent regression of root causes
+
+### IV. Task Completion Verification (NON-NEGOTIABLE)
+
+Before declaring any task as complete, the following verification steps MUST pass:
+
+**TypeScript Compilation**
+
+- `pnpm tsc --noEmit` MUST complete with zero errors
+- Type errors MUST be fixed, not suppressed or ignored
+- No `@ts-ignore` or `@ts-expect-error` comments to bypass errors
+- Generated types MUST be regenerated if OpenAPI spec changes
+
+**Test Suite**
+
+- `pnpm test` MUST complete with all tests passing
+- No skipped tests (`test.skip()`) to avoid failures
+- No flaky tests - if a test fails intermittently, fix the root cause
+- New features MUST have corresponding E2E tests
+
+**Verification Command Sequence**
+
+```bash
+pnpm tsc --noEmit && pnpm test
+```
+
+**AI Agent Requirements**
+
+- AI agents MUST run both verification commands before declaring task completion
+- AI agents MUST NOT claim "task complete" if either command fails
+- If verification fails, AI agents MUST fix the issues and re-verify
+- Verification results MUST be included in task completion summary
+
+**Rationale**: TypeScript compilation and test execution are the minimum quality gates that ensure code correctness. Declaring a task complete without passing these checks creates false confidence and technical debt. This principle ensures every completed task maintains the codebase's integrity.
+
+
 ### IV. Local Storage Data Layer (MSW Mock Backend)
 
 All data persistence MUST use browser localStorage, served via Mock Service Worker (MSW) that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
 
 **Data Storage Rules**
+
 - All data MUST be stored in localStorage with JSON serialization
 - Each data entity type MUST have its own localStorage key (e.g., `prototype_users`, `prototype_projects`)
 - Data operations MUST be synchronous and immediate within handlers
 - CRUD operations MUST update localStorage directly
 
 **MSW Architecture (NON-NEGOTIABLE)**
+
 - MUST use Mock Service Worker (MSW) library for API mocking
 - Install: `pnpm add -D msw`
 - Initialize: `pnpm dlx msw init public/ --save`
@@ -561,60 +639,65 @@ All data persistence MUST use browser localStorage, served via Mock Service Work
 - This enables the frontend to use real `fetch()` calls that work identically with a real backend
 
 **MSW Handler Pattern**
+
 ```typescript
 // src/mocks/handlers.ts
-import { http, HttpResponse } from 'msw';
-import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { http, HttpResponse } from 'msw'
+import { storage, STORAGE_KEYS } from '@/lib/storage'
 
 export const handlers = [
   http.get('/api/todos', () => {
-    const todos = storage.get(STORAGE_KEYS.TODOS) || [];
-    return HttpResponse.json(todos);
+    const todos = storage.get(STORAGE_KEYS.TODOS) || []
+    return HttpResponse.json(todos)
   }),
   http.post('/api/todos', async ({ request }) => {
-    const body = await request.json();
+    const body = await request.json()
     // ... handle creation
-    return HttpResponse.json(newTodo, { status: 201 });
+    return HttpResponse.json(newTodo, { status: 201 })
   }),
-];
+]
 ```
 
 **MSW Browser Setup**
+
 ```typescript
 // src/mocks/browser.ts
-import { setupWorker } from 'msw/browser';
-import { handlers } from './handlers';
+import { setupWorker } from 'msw/browser'
+import { handlers } from './handlers'
 
-export const worker = setupWorker(...handlers);
+export const worker = setupWorker(...handlers)
 ```
 
 **MSW Initialization in App**
+
 ```typescript
 // src/main.tsx
 async function enableMocking() {
   if (import.meta.env.DEV) {
-    const { worker } = await import('./mocks/browser');
-    return worker.start({ onUnhandledRequest: 'bypass' });
+    const { worker } = await import('./mocks/browser')
+    return worker.start({ onUnhandledRequest: 'bypass' })
   }
 }
 
 enableMocking().then(() => {
   // Render app after MSW is ready
-});
+})
 ```
 
 **Type Safety Requirements**
+
 - Define TypeScript interfaces for all data entities in `src/types/`
 - NEVER use `any` type for data operations
 - All localStorage read/write operations MUST be type-safe
 - Use Zod or similar for runtime validation when reading from localStorage
 
 **Data Utilities**
+
 - Create reusable hooks for localStorage operations (e.g., `useLocalStorage`)
 - Implement helper functions for CRUD operations in `src/lib/storage.ts`
 - Seed data MUST be available for demo/testing purposes
 
-### V. Component-Driven UI
+### VI. Component-Driven UI
 
 Build UI as a composition of reusable, isolated components.
 
@@ -624,7 +707,7 @@ Build UI as a composition of reusable, isolated components.
 - Each component MUST have a single responsibility
 - Prefer composition over prop drilling; use context sparingly
 
-### VI. State Management
+### VII. State Management
 
 Use React state and context for data management with localStorage persistence.
 
@@ -635,7 +718,7 @@ Use React state and context for data management with localStorage persistence.
 - Minimal global state; prefer component-local state where possible
 - Use React state for UI-only concerns (modals, forms, etc.)
 
-### VII. Simplicity
+### VIII. Simplicity
 
 Start simple. Add complexity only when proven necessary.
 
@@ -645,11 +728,12 @@ Start simple. Add complexity only when proven necessary.
 - Configuration over code where possible
 - Delete code that is not used
 
-### VIII. Acceptance Scenario Coverage (Spec-to-Test Mapping)
+### IX. Acceptance Scenario Coverage (Spec-to-Test Mapping)
 
 Every user scenario in specifications MUST have corresponding automated tests.
 
 **Test Case Requirements**
+
 - Each acceptance scenario (US#-AS#) in spec.md MUST have a test case
 - Test case names MUST reference source scenarios (e.g., "US1-AS1: New customer enrolls")
 - Test functions MUST use table-driven design with test case structs where applicable
@@ -657,6 +741,7 @@ Every user scenario in specifications MUST have corresponding automated tests.
 - Tests MUST validate complete "Then" clause, not partial behavior
 
 **Coverage Enforcement**
+
 - No untested scenarios MUST exist (or be explicitly deferred with justification)
 - Test coverage analysis MUST verify all scenarios are tested
 - AI agents MUST flag any scenarios that cannot be tested with justification
@@ -665,6 +750,7 @@ Every user scenario in specifications MUST have corresponding automated tests.
 **Rationale**: Specifications define expected behavior, but only automated tests guarantee that behavior is maintained. Acceptance scenario coverage bridges the gap between business requirements and implementation, ensuring the system actually does what the specifications claim. Without this mapping, specifications become documentation that drifts from reality, leading to false assumptions and undetected regressions.
 
 **Code Review Checklist**:
+
 - [ ] Every acceptance scenario in spec.md has a corresponding test case
 - [ ] Test case names reference source scenarios (e.g., "US1-AS1: New customer enrolls")
 - [ ] Test function uses table-driven design with test case structs (where applicable)
@@ -673,126 +759,244 @@ Every user scenario in specifications MUST have corresponding automated tests.
 - [ ] Test validates complete "Then" clause, not partial behavior
 - [ ] Traceability matrix is up to date (optional but recommended)
 
-### IX. OpenAPI-First API Architecture (Backend-Ready Design)
+### X. OpenAPI-First API Architecture (Backend-Ready Design)
 
 All data access MUST go through an API layer defined by OpenAPI specification. This ensures the prototype can be easily migrated to a real backend.
 
 **OpenAPI Specification Requirements**
+
 - An OpenAPI 3.0+ spec MUST be defined in `src/api/openapi.yaml` (or `.json`)
 - All API endpoints MUST be documented in the OpenAPI spec before implementation
 - Request/response schemas MUST be defined in the OpenAPI spec
 - The spec MUST be complete enough to hand to backend developers for implementation
 
-**Code Generation (NON-NEGOTIABLE)**
-- TypeScript types MUST be generated from OpenAPI spec using `openapi-typescript`
-- Install: `pnpm add -D openapi-typescript`
-- Generate: `npx openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts`
-- Add npm script: `"api:generate": "openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts"`
+**Code Generation with Orval (NON-NEGOTIABLE)**
+
+- TypeScript types and React Query hooks MUST be generated from OpenAPI spec using `orval`
+- Install: `pnpm add -D orval`
+- Create config file `orval.config.ts` at project root:
+
+  ```typescript
+  import { defineConfig } from 'orval'
+
+  export default defineConfig({
+    api: {
+      output: {
+        mode: 'tags-split',
+        target: 'src/api/generated/endpoints',
+        schemas: 'src/api/generated/models',
+        client: 'react-query',
+        mock: false,
+        baseUrl: '/api',
+      },
+      input: {
+        target: './src/api/openapi.yaml',
+      },
+    },
+  })
+  ```
+
+- Add npm script: `"api:generate": "orval"`
 - Generated files MUST be in `src/api/generated/` directory
 - **AI agents MUST NOT directly edit files in `src/api/generated/`** - regenerate from OpenAPI spec instead
 - Run `pnpm api:generate` after any OpenAPI spec changes
 
-**Typed API Client (openapi-fetch)**
-- Use `openapi-fetch` for type-safe API calls: `pnpm add openapi-fetch`
-- Create client in `src/api/client.ts` using generated types:
+**Orval Output Structure**
+
+- `src/api/generated/models/` - TypeScript interfaces for all schemas
+- `src/api/generated/endpoints/` - React Query hooks and fetch functions
+- MSW handlers are manually written in `src/mocks/handlers.ts` (NOT generated)
+
+**Typed API Client (Orval-generated)**
+
+- Orval generates type-safe React Query hooks and fetch functions automatically
+- Import generated hooks directly from `src/api/generated/endpoints/`:
   ```typescript
-  import createClient from 'openapi-fetch';
-  import type { paths } from './generated/schema';
-  
-  export const api = createClient<paths>({ baseUrl: '/api' });
+  import {
+    useListUsers,
+    useGetUser,
+    useCreateUser,
+  } from '@/api/generated/endpoints/users'
   ```
-- All API calls MUST use the typed client (e.g., `api.GET('/users/{id}', { params: { path: { id } } })`)
-- React hooks MUST wrap typed client calls, NOT raw fetch
+- All API calls MUST use the generated hooks or functions
+- For custom fetch wrapper, use Orval's mutator option:
+  ```typescript
+  // orval.config.ts
+  output: {
+    override: {
+      mutator: {
+        path: './src/api/custom-fetch.ts',
+        name: 'customFetch',
+      },
+    },
+  }
+  ```
 
 **HTTP Fetch Pattern (NON-NEGOTIABLE)**
-- Frontend code MUST use `openapi-fetch` client for all data operations
-- Fetch calls MUST use proper HTTP methods (GET, POST, PUT, DELETE)
-- Fetch calls MUST use proper URL paths matching OpenAPI spec (e.g., `/api/users`, `/api/projects/{id}`)
-- NO direct localStorage access from React components - all data MUST flow through API client
 
-**Browser Worker Implementation**
-- A Service Worker MUST intercept fetch requests to `/api/*` endpoints
-- Worker MUST parse requests according to OpenAPI spec format
-- Worker MUST read/write localStorage to fulfill the request
-- Worker MUST return proper HTTP responses (status codes, headers, JSON body)
-- Worker implementation lives in `src/api/worker.ts` (or `src/api/mock-server.ts`)
+- Frontend code MUST use Orval-generated hooks/functions for all data operations
+- Generated code uses proper HTTP methods (GET, POST, PUT, DELETE) automatically
+- Generated code uses proper URL paths matching OpenAPI spec automatically
+- NO direct localStorage access from React components - all data MUST flow through generated API client
+
+**MSW Integration with Orval (NON-NEGOTIABLE)**
+
+- Orval config MUST set `mock: false` - faker.js mock data is NOT used
+- **All data MUST come from localStorage** - this is the only data source for clickable prototypes
+- MSW handlers MUST be manually written in `src/mocks/handlers.ts` using `http` from msw
+- Handlers MUST import types from orval-generated models for type safety
+- Use localStorage for all CRUD operations:
+
+  ```typescript
+  // src/mocks/handlers.ts
+  import { http, HttpResponse } from 'msw'
+  import { storage, STORAGE_KEYS } from '@/lib/storage'
+  // Import types from orval-generated models for type safety
+  import type {
+    ListUsersResponse,
+    UserItemResponse,
+    User,
+  } from '@/api/generated/models'
+
+  export const handlers = [
+    // GET /api/users - read from localStorage
+    http.get('/api/v1/users', () => {
+      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || []
+      return HttpResponse.json<ListUsersResponse>({
+        data: users,
+        meta: { page: 1, limit: 20, total: users.length, totalPages: 1 },
+      })
+    }),
+
+    // GET /api/users/:userId - read from localStorage
+    http.get('/api/v1/users/:userId', ({ params }) => {
+      const { userId } = params
+      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || []
+      const user = users.find((u) => u.id === userId)
+      if (!user) {
+        return HttpResponse.json(
+          { error: { code: 'NOT_FOUND', message: 'User not found' } },
+          { status: 404 }
+        )
+      }
+      return HttpResponse.json<UserItemResponse>({ data: user })
+    }),
+
+    // POST /api/users - persist to localStorage
+    http.post('/api/v1/users', async ({ request }) => {
+      const body = await request.json()
+      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || []
+      const newUser = {
+        id: `user-${Date.now()}`,
+        ...body,
+        createdAt: new Date().toISOString(),
+      }
+      storage.set(STORAGE_KEYS.USERS, [...users, newUser])
+      return HttpResponse.json<UserItemResponse>(
+        { data: newUser },
+        { status: 201 }
+      )
+    }),
+  ]
+  ```
+
+- **Key principle**: Orval generates types and React Query hooks; MSW handlers use localStorage for data
+- When OpenAPI spec changes, run `pnpm api:generate` to update types, then update handlers to match
+- Handler paths MUST match OpenAPI spec paths exactly (e.g., `/api/v1/users`)
 
 **Backend Migration Path**
-- To migrate to real backend: disable Service Worker, update `baseUrl` in client
+
+- To migrate to real backend: disable MSW, update `baseUrl` in orval.config.ts and regenerate
 - OpenAPI spec serves as contract for backend implementation
 - No frontend code changes required beyond configuration
 - Backend team receives complete OpenAPI spec with all endpoints documented
 
-**Rationale**: By using real HTTP fetch patterns with a browser worker mock, the prototype behaves identically to a production app with a real backend. Code generation ensures types stay in sync with the API contract. The `openapi-fetch` library provides compile-time type safety for all API calls. This eliminates the common problem of prototypes that "work" but require complete rewrites when connecting to real APIs.
+**Rationale**: By using Orval with MSW, the prototype behaves identically to a production app with a real backend. Code generation ensures types and hooks stay in sync with the API contract. Orval provides compile-time type safety for all API calls and generates React Query hooks automatically. This eliminates the common problem of prototypes that "work" but require complete rewrites when connecting to real APIs.
 
 **Code Organization**:
+
 ```
 src/api/
-├── openapi.yaml          # OpenAPI 3.0+ specification (source of truth)
-├── generated/            # Generated files - DO NOT EDIT
-│   └── schema.d.ts       # Generated types from openapi-typescript
-├── client.ts             # Typed API client using openapi-fetch
-└── worker.ts             # Service Worker that mocks backend
+├── openapi.yaml              # OpenAPI 3.0+ specification (source of truth)
+├── generated/                # Generated files - DO NOT EDIT
+│   ├── models/               # Generated TypeScript interfaces
+│   │   ├── index.ts
+│   │   └── ...
+│   └── endpoints/            # Generated React Query hooks
+│       ├── users/            # useListUsers, useGetUser, etc.
+│       └── ...
+├── custom-fetch.ts           # Optional custom fetch wrapper
+orval.config.ts               # Orval configuration (at project root)
 ```
 
 ## Technology Stack
 
 **Core Framework:**
-- TypeScript (strict mode enabled)
-- React with functional components and hooks
-- Vite for build tooling
-- pnpm as package manager
+
+- TypeScript ~5.9 (strict mode enabled)
+- React 19 with functional components and hooks
+- Vite 7 for build tooling
+- pnpm 10.25+ as package manager
+- Node.js 24.10+
 
 **Data Layer:**
-- Browser localStorage for data persistence (via Service Worker)
+
+- Browser localStorage for data persistence (via MSW)
 - OpenAPI 3.0+ specification for API contract
-- `openapi-typescript` for generating TypeScript types from OpenAPI spec
-- `openapi-fetch` for type-safe API client
-- Service Worker to intercept fetch and respond from localStorage
-- React Context for shared state
-- Custom hooks wrapping typed API client
+- `orval` ^7.17 for generating TypeScript types and React Query hooks from OpenAPI spec
+- MSW ^2.12 (Mock Service Worker) to intercept fetch and respond from localStorage
+- TanStack Query (React Query) ^5.90 for server state management
+- Zustand ^5.0 for client state management
+- React Context for shared UI state
 
 **UI Layer:**
-- Tailwind CSS for styling
-- shadcn/ui components
-- Lucide for icons
+
+- Tailwind CSS ^4.1 for styling
+- shadcn/ui components (Radix UI primitives)
+- Lucide React ^0.545 for icons
+- TanStack Table ^8.21 for data tables
+- Recharts ^3.2 for charts and visualizations
+- React Hook Form ^7.64 + Zod ^4.1 for forms and validation
+- Sonner ^2.0 for toast notifications
+- cmdk for command palette
 
 **Testing:**
-- Playwright for E2E tests
+
+- Playwright ^1.57 for E2E tests
 - E2E tests: test all user journeys with localStorage
+- Faker.js ^10.1 for mock data generation
 
 **Routing:**
-- React Router
+
+- TanStack Router ^1.132 (file-based routing)
 - Route structure mirrors resource hierarchy
+- Auto-generated route types via `@tanstack/router-plugin`
 
 **Command Execution (NON-NEGOTIABLE)**
+
 - All CLI commands MUST run with default values - NEVER wait for user input
 - Use `--yes`, `--default`, `-y`, or equivalent flags to auto-accept defaults
 - Example: `pnpm dlx shadcn@latest init --defaults`
 - If a command has no auto-accept flag, pipe `yes` or use expect scripts
 
 **Project Setup (NON-NEGOTIABLE)**
+
+- **New console projects MUST be initialized from the admin template repository**:
+  ```bash
+  # Clone the admin template as the starting point
+  git clone https://github.com/theplant/qortexjs.git
+  cp -r qortexjs/admin <new-console-name>
+  cd <new-console-name>
+  rm -rf .git
+  git init
+  pnpm install
+  ```
+- NEVER create a new console project from scratch - always use the admin template
+- The admin template includes all required configurations: Vite, TanStack Router, shadcn/ui, Tailwind CSS, MSW, orval, Playwright, etc.
+
 - NEVER manually create config files that are supposed to be generated by CLI tools (e.g., `tailwind.config.js`, `postcss.config.js`, `components.json`)
 - Let the CLI tools generate these files with their default/recommended configurations
 - Only modify generated configs AFTER they are created by the tool if customization is needed
-
-- To create Vite project in current non-empty folder without prompts:
-  ```bash
-  pnpm create vite@latest ./app --template react-ts --no-interactive && mv ./app/{.,}* . 2>/dev/null; mv ./app/* . 2>/dev/null; rm -rf app
-  ```
-
-- Before running `pnpm dlx shadcn@latest init --defaults`, update root `tsconfig.json` to include path alias:
-  ```json
-  {
-    "compilerOptions": {
-      "baseUrl": ".",
-      "paths": {
-        "@/*": ["./src/*"]
-      }
-    }
-  }
-  ```
-  This is required because shadcn init reads tsconfig.json to configure import aliases
 
 ## Development Workflow
 
@@ -801,66 +1005,79 @@ src/api/
 For each user story, tasks MUST be executed in this exact order:
 
 1. **Define OpenAPI Spec**: Add endpoints/schemas to `src/api/openapi.yaml`
-2. **Generate Types**: Run `pnpm api:generate` to regenerate TypeScript types
+2. **Generate Code**: Run `pnpm api:generate` to regenerate types and hooks
 3. **Write E2E Tests**: Create failing tests in `tests/e2e/`
 4. **Verify Tests Fail**: Run `pnpm test:e2e` - all new tests MUST fail
-5. **Implement Worker Handlers**: Add localStorage handlers in `src/api/worker.ts`
-6. **Implement Hooks**: Create hooks wrapping typed API client
-7. **Implement Components**: Build UI components consuming hooks
-8. **Verify Tests Pass**: Run full test suite - all tests MUST pass
-9. **Refactor**: Clean up code while keeping tests green
+5. **Update MSW Handlers**: Add/update handlers in `src/mocks/handlers.ts` for localStorage persistence
+6. **Implement Components**: Build UI components using generated React Query hooks
+7. **Verify Tests Pass**: Run full test suite - all tests MUST pass
+8. **Refactor**: Clean up code while keeping tests green
 
 **⚠️ VIOLATION**: Implementing code before tests exist is a constitution violation.
 
 ### Code Organization
 
 ```
+spec/                 # API specification documents (human-readable)
+└── *.md  # feature doc
 src/
-├── api/           # API layer
-│   ├── openapi.yaml      # OpenAPI spec (source of truth)
+├── api/              # API layer
+│   ├── openapi.yaml      # OpenAPI 3.0+ specification (source of truth)
 │   ├── generated/        # Generated files - DO NOT EDIT
-│   │   └── schema.d.ts   # Generated types
-│   ├── client.ts         # Typed API client
-│   └── worker.ts         # Service Worker mock backend
-├── hooks/         # Custom hooks wrapping API client
-├── components/    # Reusable UI components
-├── pages/         # Route-level components
-├── lib/           # Utilities (storage.ts for worker, etc.)
-└── data/          # Seed data for demo/testing
+│   │   ├── models/       # Generated TypeScript interfaces
+│   │   └── endpoints/    # Generated React Query hooks (organized by domain)
+│   └── custom-fetch.ts   # Custom fetch wrapper
+├── mocks/            # MSW setup and handlers
+│   ├── browser.ts        # MSW browser worker setup
+│   └── handlers.ts       # MSW handlers with localStorage persistence
+├── components/       # Reusable UI components
+├── features/         # Feature-specific components (organized by domain)
+├── routes/           # TanStack Router file-based routes
+├── services/         # Business logic and data services
+├── hooks/            # Custom React hooks
+├── context/          # React Context providers
+├── stores/           # Zustand stores
+├── lib/              # Utilities
+├── types/            # TypeScript type definitions
+├── data/             # Seed data for demo/testing
+├── config/           # App configuration
+├── assets/           # Static assets
+└── styles/           # Global styles and theme
+orval.config.ts       # Orval configuration (at project root)
 tests/
-└── e2e/           # End-to-end user journey tests (Playwright)
+└── e2e/              # End-to-end tests (organized by feature)
+    └── utils/            # Test utilities
 ```
 
 ### Quality Gates
 
 - All tests MUST pass before merge
 - Type checking MUST pass (`tsc --noEmit`)
-- Generated types MUST be up-to-date (`pnpm api:generate` produces no changes)
+- Generated code MUST be up-to-date (`pnpm api:generate` produces no changes)
 - Linting MUST pass (ESLint)
 - Format MUST be consistent (Prettier)
 - No `any` types without explicit justification
 - AI agents MUST NOT edit files in `src/api/generated/`
-
-
-
-
 
 ## Governance
 
 This constitution supersedes all other development practices for this clickable prototype project.
 
 **Amendment Process:**
+
 1. Propose change with rationale
 2. Review impact on existing code
 3. Update constitution with version bump
 4. Communicate changes to team
 
 **Compliance:**
+
 - All PRs MUST verify compliance with these principles
 - Complexity MUST be justified in PR description
 - Violations require explicit exception with documented reasoning
 
 **Version Policy:**
+
 - MAJOR: Principle removal or fundamental change
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
