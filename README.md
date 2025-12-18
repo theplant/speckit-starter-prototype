@@ -14,9 +14,29 @@ This repository provides a battle-tested constitution and templates for building
 
 ## Quick Start
 
-### One-Line Installation
+### Option 1: Start a New Project with shadcn-admin Template
 
-Run this command in your project directory to install everything automatically:
+Use `tiged` to scaffold a new project from the excellent [shadcn-admin](https://github.com/satnaing/shadcn-admin) template:
+
+```bash
+# Create new project from shadcn-admin template
+npx tiged --mode=git satnaing/shadcn-admin my-project
+cd my-project
+pnpm install
+
+# Add speckit constitution and workflows
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/theplant/speckit-starter-prototype/HEAD/install.sh)"
+```
+
+This gives you:
+- ✅ Full admin dashboard with sidebar, tables, forms, charts
+- ✅ TanStack Router + React Query + Zustand already configured
+- ✅ shadcn/ui components pre-installed
+- ✅ Speckit constitution and AI workflows
+
+### Option 2: Add to Existing Project (One-Liner)
+
+Run this command in your existing project directory:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/theplant/speckit-starter-prototype/HEAD/install.sh)"
@@ -110,11 +130,11 @@ The constitution (`.specify/memory/constitution.md`) defines core development pr
 | **Framework** | React with functional components and hooks |
 | **Build Tool** | Vite |
 | **Package Manager** | pnpm |
-| **API Layer** | OpenAPI 3.0+ spec, openapi-typescript, openapi-fetch |
+| **API Layer** | OpenAPI 3.0+ spec, Orval (types + React Query hooks) |
 | **Mock Backend** | MSW (Mock Service Worker) + localStorage |
 | **UI** | Tailwind CSS + shadcn/ui + Lucide icons |
 | **Testing** | Playwright E2E only |
-| **Routing** | React Router |
+| **Routing** | TanStack Router (file-based) |
 
 ## Project Structure
 
@@ -209,4 +229,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-**Version**: 2.6.0 | **Last Updated**: 2025-12-18
+**Version**: 2.7.0 | **Last Updated**: 2025-12-18
