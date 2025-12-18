@@ -1,40 +1,38 @@
 <!--
-SYNC IMPACT REPORT - 2025-12-17
+SYNC IMPACT REPORT - 2025-12-18
 ================================
-Version change: 2.5.0 → 2.6.0 (MINOR)
+Version change: 2.6.0 → 2.7.0 (MINOR)
 
 Modified Principles:
-- Principle I (E2E Testing Discipline): Enhanced test data requirements
+- ALL principles: Replaced Roman numeral numbering with short descriptive names
+  - This allows inserting new principles without disturbing existing references
+  - Format: `### SHORT-NAME: Full Title`
+  - Examples: E2E-TESTING, ROOT-CAUSE-TRACING, OPENAPI-FIRST
+
+Principle Name Mapping (old → new):
+- I → E2E-TESTING
+- II → SPEC-EVOLUTION
+- III → ROOT-CAUSE-TRACING
+- IV (first) → TASK-VERIFICATION
+- IV (second, was duplicate) → MSW-MOCK-BACKEND
+- VI → COMPONENT-UI
+- VII → STATE-MANAGEMENT
+- VIII → SIMPLICITY
+- IX → ACCEPTANCE-COVERAGE
+- X → OPENAPI-FIRST
+
+Templates Updated:
+- ✅ theplant workflows - Updated to use new principle names
+
+Previous Changes (v2.6.0):
+- Principle E2E-TESTING: Enhanced test data requirements
   - Added requirement to use TypeScript types from openapi.yaml for test data
   - Added Zustand persist store seeding pattern with page.reload()
   - Added correct localStorage key documentation (pim-mock-db)
-- Principle III (Root Cause Tracing): Added No-Give-Up Rule
+- Principle ROOT-CAUSE-TRACING: Added No-Give-Up Rule
   - AI agents MUST NOT abandon problems by reverting to simpler approaches
   - AI agents MUST continue investigating until root cause is found
   - Added violation and correct behavior examples
-
-Added Sections:
-- Test Data MUST Use Generated TypeScript Types (NON-NEGOTIABLE)
-- Seeding Pattern for Zustand Persist Stores
-- No-Give-Up Rule (NON-NEGOTIABLE)
-
-Removed Sections:
-- None
-
-Templates Updated:
-- ✅ plan-template.md - No changes needed
-- ✅ tasks-template.md - No changes needed
-- ✅ spec-template.md - No changes needed
-
-Previous Changes (v2.8.0):
-- Updated Technology Stack with specific version numbers from loyalty-console
-- Added detailed Code Organization reflecting actual project structure
-- Added features/ directory structure with all domain modules
-- Added TanStack Router, TanStack Table, Recharts, Zustand to tech stack
-- Added React Hook Form + Zod for forms
-- Added Sonner, cmdk to UI layer
-- Updated specs/ directory location for OpenAPI spec
-- Added E2E test file examples
 ================================
 -->
 
@@ -42,7 +40,7 @@ Previous Changes (v2.8.0):
 
 ## Core Principles
 
-### I. E2E Testing Discipline (NON-NEGOTIABLE)
+### E2E-TESTING: E2E Testing Discipline (NON-NEGOTIABLE)
 
 All testing MUST be done exclusively with Playwright end-to-end tests.
 
@@ -497,7 +495,7 @@ await page.waitForResponse(resp => resp.url().includes('/api/data'));
 // await page.waitForTimeout(1000);
 ```
 
-### II. Spec Evolution and Test Maintenance
+### SPEC-EVOLUTION: Spec Evolution and Test Maintenance
 
 When new specifications are written that conflict with previous specs, the following rules apply:
 
@@ -519,7 +517,7 @@ When new specifications are written that conflict with previous specs, the follo
 
 **Rationale**: Skipping tests creates hidden technical debt and masks real issues. Every skipped test is a gap in coverage that can allow bugs to ship. Root cause tracing ensures we understand why tests fail and fix them properly rather than hiding problems.
 
-### III. Root Cause Tracing (Debugging Discipline)
+### ROOT-CAUSE-TRACING: Root Cause Tracing (Debugging Discipline)
 
 When problems occur during development, root cause analysis MUST be performed before implementing fixes:
 
@@ -582,7 +580,7 @@ Instead, AI agents MUST:
 - AI agents MUST document the root cause analysis process
 - AI agents MUST update tests to prevent regression of root causes
 
-### IV. Task Completion Verification (NON-NEGOTIABLE)
+### TASK-VERIFICATION: Task Completion Verification (NON-NEGOTIABLE)
 
 Before declaring any task as complete, the following verification steps MUST pass:
 
@@ -616,7 +614,7 @@ pnpm tsc --noEmit && pnpm test
 **Rationale**: TypeScript compilation and test execution are the minimum quality gates that ensure code correctness. Declaring a task complete without passing these checks creates false confidence and technical debt. This principle ensures every completed task maintains the codebase's integrity.
 
 
-### IV. Local Storage Data Layer (MSW Mock Backend)
+### MSW-MOCK-BACKEND: Local Storage Data Layer (MSW Mock Backend)
 
 All data persistence MUST use browser localStorage, served via Mock Service Worker (MSW) that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
 
@@ -697,7 +695,7 @@ enableMocking().then(() => {
 - Implement helper functions for CRUD operations in `src/lib/storage.ts`
 - Seed data MUST be available for demo/testing purposes
 
-### VI. Component-Driven UI
+### COMPONENT-UI: Component-Driven UI
 
 Build UI as a composition of reusable, isolated components.
 
@@ -707,7 +705,7 @@ Build UI as a composition of reusable, isolated components.
 - Each component MUST have a single responsibility
 - Prefer composition over prop drilling; use context sparingly
 
-### VII. State Management
+### STATE-MANAGEMENT: State Management
 
 Use React state and context for data management with localStorage persistence.
 
@@ -718,7 +716,7 @@ Use React state and context for data management with localStorage persistence.
 - Minimal global state; prefer component-local state where possible
 - Use React state for UI-only concerns (modals, forms, etc.)
 
-### VIII. Simplicity
+### SIMPLICITY: Simplicity
 
 Start simple. Add complexity only when proven necessary.
 
@@ -728,7 +726,7 @@ Start simple. Add complexity only when proven necessary.
 - Configuration over code where possible
 - Delete code that is not used
 
-### IX. Acceptance Scenario Coverage (Spec-to-Test Mapping)
+### ACCEPTANCE-COVERAGE: Acceptance Scenario Coverage (Spec-to-Test Mapping)
 
 Every user scenario in specifications MUST have corresponding automated tests.
 
@@ -759,7 +757,7 @@ Every user scenario in specifications MUST have corresponding automated tests.
 - [ ] Test validates complete "Then" clause, not partial behavior
 - [ ] Traceability matrix is up to date (optional but recommended)
 
-### X. OpenAPI-First API Architecture (Backend-Ready Design)
+### OPENAPI-FIRST: OpenAPI-First API Architecture (Backend-Ready Design)
 
 All data access MUST go through an API layer defined by OpenAPI specification. This ensures the prototype can be easily migrated to a real backend.
 
@@ -1082,4 +1080,4 @@ This constitution supersedes all other development practices for this clickable 
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
 
-**Version**: 2.6.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-17
+**Version**: 2.7.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-18

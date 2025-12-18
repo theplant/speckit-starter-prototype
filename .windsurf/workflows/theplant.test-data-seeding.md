@@ -14,14 +14,36 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Ensure E2E tests properly seed test data into Zustand persist stores via localStorage. This workflow guides the correct pattern for data seeding that works with Zustand's persist middleware.
 
+## Rationale (OPENAPI-FIRST)
+
+Tests MUST use typed data structures (OPENAPI-FIRST). Test data MUST be derived from fixtures, not copied from responses. This ensures tests validate actual behavior and catch schema changes at compile time.
+
 ## Core Principles (NON-NEGOTIABLE)
 
-### Test Data MUST Use TypeScript Types
+### Test Data MUST Use TypeScript Types (OPENAPI-FIRST)
 
-Test data MUST be typed using TypeScript types from `src/types/`. This ensures:
+Test data MUST be typed using TypeScript types from `src/types/` (generated from OpenAPI spec). This ensures:
 - Compile-time validation of test data schema
 - Automatic detection of schema changes
 - Consistent data structure between tests and application
+- Types match OpenAPI specification (single source of truth)
+
+### Expected Values MUST Be Derived from Fixtures (OPENAPI-FIRST)
+
+- **Expected values MUST be derived from TEST FIXTURES** (seeded data, request data)
+- **Copy from response ONLY for truly random fields**: UUIDs, timestamps, crypto-rand tokens
+- **Copying non-random response fields defeats testing** (test always passes)
+
+```typescript
+// ✅ CORRECT: Expected from fixtures
+const testProduct = createTestProduct('1', 'SKU-001', 'Test Product', 99.99);
+await seedData([testProduct]);
+await expect(page.getByText(testProduct.name.en)).toBeVisible();  // From fixture
+
+// ❌ WRONG: Copying from response
+const response = await page.textContent('[data-testid="product-name"]');
+await expect(page.getByText(response)).toBeVisible();  // Always passes!
+```
 
 ### Seeding Pattern for Zustand Persist Stores
 
@@ -233,6 +255,22 @@ const badProduct = { id: '1', name: 'Test', price: 99 };
 // ✅ GOOD: Typed helper ensures all required fields
 const goodProduct = createTestProduct('1', 'SKU-001', 'Test', 99);
 ```
+
+## AI Agent Requirements
+
+- AI agents MUST use typed test data helpers (NOT inline objects)
+- AI agents MUST derive expected values from fixtures (NOT from responses)
+- AI agents MUST use correct localStorage key from store configuration
+- AI agents MUST call `page.reload()` after seeding for Zustand re-hydration
+- AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when seeding fails
+- AI agents MUST read fixture defaults before writing assertions (OPENAPI-FIRST)
+
+## Integration with Other Workflows
+
+- **theplant.system-exploration**: Trace code to find correct localStorage key
+- **theplant.openapi-first**: Types must match OpenAPI-generated types
+- **theplant.e2e-testing**: Use seeded data for E2E test assertions
+- **theplant.msw-mock-backend**: MSW handlers read from same localStorage
 
 ## Context
 

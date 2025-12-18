@@ -14,6 +14,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP requests and serves data from localStorage. This enables prototype development with real HTTP patterns that can seamlessly migrate to a real backend.
 
+## Rationale
+
+MSW enables frontend development with real `fetch()` calls that work identically with a real backend. This aligns with the **OPENAPI-FIRST** principle where the API contract is defined first, and implementation follows. MSW handlers implement the contract locally while the backend team implements the same contract on the server.
+
 ## Core Principles (NON-NEGOTIABLE)
 
 ### MSW Architecture
@@ -23,14 +27,23 @@ Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP req
 - MSW browser worker setup MUST be in `src/mocks/browser.ts`
 - MSW MUST be started in development mode only (not in production builds)
 - Handlers MUST use standard Fetch API Request/Response objects
+- Handlers MUST implement endpoints defined in OpenAPI spec (single source of truth)
 - This enables the frontend to use real `fetch()` calls that work identically with a real backend
+
+### OpenAPI Contract Alignment (OPENAPI-FIRST)
+
+- MSW handlers MUST match the OpenAPI specification exactly
+- Request/response schemas MUST match OpenAPI definitions
+- HTTP status codes MUST follow OpenAPI spec (201 for create, 404 for not found, etc.)
+- Error responses MUST follow a consistent structure (code, message, details)
 
 ### Data Storage Rules
 
 - All data MUST be stored in localStorage with JSON serialization
-- Each data entity type MUST have its own localStorage key
+- Each data entity type MUST have its own localStorage key (or use Zustand persist store)
 - Data operations MUST be synchronous and immediate within handlers
 - CRUD operations MUST update localStorage directly
+- Storage keys MUST be documented for test data seeding (see theplant.test-data-seeding workflow)
 
 ## Execution Steps
 
@@ -188,6 +201,33 @@ export const storage = {
 
 - Storage wrapper MUST log key and value on every read/write when running in test mode
 - This enables AI agents to see data flow when debugging test failures
+- Logging MUST include operation type (READ/WRITE/DELETE) for traceability
+
+## Error Handling
+
+MSW handlers MUST implement consistent error responses:
+
+```typescript
+// Error response structure (matches backend contract)
+interface ErrorResponse {
+  code: string;     // e.g., "PRODUCT_NOT_FOUND"
+  message: string;  // e.g., "Product not found"
+  details?: string; // Optional debug info (dev mode only)
+}
+
+// Example error handler
+http.get('/api/products/:id', ({ params }) => {
+  const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
+  const product = products.find((p: any) => p.id === params.id);
+  if (!product) {
+    return HttpResponse.json(
+      { code: 'PRODUCT_NOT_FOUND', message: 'Product not found' },
+      { status: 404 }
+    );
+  }
+  return HttpResponse.json(product);
+});
+```
 
 ## Playwright Configuration
 
@@ -216,6 +256,15 @@ To migrate to real backend:
 2. Update API client `baseUrl` to point to real backend
 3. No other frontend code changes required
 4. OpenAPI spec serves as contract for backend implementation
+5. Backend team implements the same OpenAPI spec using oapi-codegen (Go) or equivalent
+
+## AI Agent Requirements
+
+- AI agents MUST verify MSW handlers match OpenAPI spec before adding new endpoints
+- AI agents MUST use consistent error response structure
+- AI agents MUST document localStorage keys for test data seeding
+- AI agents MUST NOT hardcode data - use storage layer for all data access
+- AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when debugging MSW issues
 
 ## Context
 

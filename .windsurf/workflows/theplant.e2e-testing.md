@@ -14,14 +14,19 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Ensure all E2E tests follow ThePlant's testing discipline principles. This workflow guides writing, reviewing, and fixing Playwright E2E tests.
 
+## Rationale (E2E-TESTING)
+
+E2E tests catch real-world issues that unit tests cannot. Testing through the full stack (browser → API → storage) validates actual user behavior. This aligns with the E2E-TESTING principle adapted for frontend prototype development.
+
 ## Core Principles (NON-NEGOTIABLE)
 
-### Testing Approach
+### Testing Approach (E2E-TESTING)
 
 - Every feature MUST have corresponding E2E tests before it is considered complete
 - Tests MUST simulate real user behavior through the browser
 - Tests MUST cover the full user journey, not isolated components
-- No unit tests, no integration tests in isolation - E2E only
+- Tests MUST use real HTTP calls (via MSW) - NOT mocked fetch responses
+- No unit tests, no integration tests in isolation - E2E only for prototype phase
 
 ### Coverage Requirements
 
@@ -30,11 +35,27 @@ Ensure all E2E tests follow ThePlant's testing discipline principles. This workf
 - All loading states and error states MUST be verified
 - Route parameters and query strings MUST be tested for edge cases
 
-### Test Independence
+### Test Independence (E2E-TESTING)
 
 - Tests MUST NOT depend on execution order of other tests
-- Tests MUST clean up any data they create (or use isolated test data)
+- Tests MUST clean up any data they create (or use isolated test data via localStorage seeding)
 - Tests MUST be able to run in parallel without conflicts
+- Test data MUST be seeded via localStorage (see theplant.test-data-seeding workflow)
+
+### Test Naming Convention (ACCEPTANCE-COVERAGE)
+
+Test names MUST reference acceptance scenarios or bug IDs:
+
+```typescript
+// ✅ GOOD: References acceptance scenario
+test('US1-AS1: New user can view empty product list', async ({ page }) => { ... });
+
+// ✅ GOOD: References bug ID
+test('BUG-123: Product count shows correct value after delete', async ({ page }) => { ... });
+
+// ❌ BAD: Generic name
+test('should work', async ({ page }) => { ... });
+```
 
 ## Execution Steps
 
@@ -205,6 +226,16 @@ When tests fail, follow this diagnosis process:
 - New routes/interactions MUST have corresponding E2E tests
 - No flaky tests allowed - tests MUST be deterministic
 - NEVER use `test.skip()` to avoid fixing tests
+- Tests MUST be executed after every code change (TASK-VERIFICATION)
+
+## AI Agent Requirements
+
+- AI agents MUST run E2E tests after any code changes
+- AI agents MUST treat test failures as blocking issues requiring immediate resolution
+- AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when tests fail
+- AI agents MUST NOT remove or weaken tests to make them pass
+- AI agents MUST write failing reproduction tests BEFORE fixing bugs
+- AI agents MUST use typed test data helpers (see theplant.test-data-seeding workflow)
 
 ## Context
 

@@ -14,14 +14,20 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Ensure all API development follows OpenAPI-First principles. Define the API contract before implementation, generate TypeScript types, and use type-safe clients for all data access.
 
+## Rationale (OPENAPI-FIRST)
+
+Schema-first design provides type safety and ensures API contracts are the source of truth. Generated types eliminate manual struct maintenance and reduce bugs. The OpenAPI specification serves as a contract between frontend and backend teams, enabling parallel development.
+
 ## Core Principles (NON-NEGOTIABLE)
 
-### OpenAPI Specification Requirements
+### OpenAPI Specification Requirements (OPENAPI-FIRST)
 
 - An OpenAPI 3.0+ spec MUST be defined in `src/api/openapi.yaml` (or `.json`)
 - All API endpoints MUST be documented in the OpenAPI spec before implementation
 - Request/response schemas MUST be defined in the OpenAPI spec
 - The spec MUST be complete enough to hand to backend developers for implementation
+- Error response schemas MUST be defined (code, message, details structure)
+- The spec is the **single source of truth** for API contracts
 
 ### Code Generation (NON-NEGOTIABLE)
 
@@ -29,6 +35,16 @@ Ensure all API development follows OpenAPI-First principles. Define the API cont
 - Generated files MUST be in `src/api/generated/` directory
 - **AI agents MUST NOT directly edit files in `src/api/generated/`** - regenerate from OpenAPI spec instead
 - Run `pnpm api:generate` after any OpenAPI spec changes
+- Generated types provide compile-time validation of API usage
+
+### Backend Code Generation (Go Projects)
+
+For Go backend projects, the same OpenAPI spec can generate server code:
+
+- Use `oapi-codegen` (github.com/oapi-codegen/oapi-codegen) for Go type and server generation
+- Generated `StrictServerInterface` provides type-safe request/response handling
+- Backend implements the generated interface directly (NO separate service interface)
+- See OPENAPI-FIRST principle for detailed oapi-codegen workflow
 
 ### HTTP Fetch Pattern (NON-NEGOTIABLE)
 
@@ -185,6 +201,8 @@ To migrate to real backend:
 2. Update `baseUrl` in client to point to real API
 3. No frontend code changes required beyond configuration
 4. Backend team receives complete OpenAPI spec with all endpoints documented
+5. Backend implements using oapi-codegen (Go) or equivalent code generator
+6. Both frontend and backend use the same OpenAPI spec as source of truth
 
 ## Quality Gates
 
@@ -192,6 +210,15 @@ To migrate to real backend:
 - Type checking MUST pass (`tsc --noEmit`)
 - AI agents MUST NOT edit files in `src/api/generated/`
 - All API calls MUST use the typed client
+- OpenAPI spec MUST be validated before code generation
+
+## AI Agent Requirements
+
+- AI agents MUST check if OpenAPI spec exists before generating code
+- AI agents MUST regenerate types whenever OpenAPI files change
+- AI agents MUST use generated types (NO manual type definitions for API data)
+- AI agents MUST verify MSW handlers match OpenAPI spec
+- AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when debugging type mismatches
 
 ## Context
 

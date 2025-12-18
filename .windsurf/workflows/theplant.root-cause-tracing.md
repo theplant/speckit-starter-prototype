@@ -14,9 +14,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 When problems occur during development, apply systematic root cause analysis before implementing fixes. This workflow ensures problems are solved at their source, preventing recurrence and maintaining system integrity.
 
+## Rationale (ROOT-CAUSE-TRACING)
+
+Superficial fixes create technical debt and hide underlying architectural problems. Root cause analysis ensures problems are solved at their source, preventing recurrence and maintaining system integrity. This discipline transforms debugging from firefighting into systematic problem-solving that improves overall code quality.
+
 ## Core Principles (NON-NEGOTIABLE)
 
-### Root Cause Tracing
+### Root Cause Tracing (ROOT-CAUSE-TRACING)
 
 - Problems MUST be traced backward through the call chain to find the original trigger
 - Symptoms MUST be distinguished from root causes
@@ -26,6 +30,7 @@ When problems occur during development, apply systematic root cause analysis bef
 - Multiple potential causes MUST be systematically eliminated
 - Documentation MUST be updated to prevent similar issues
 - Root cause MUST be verified through testing before closing the issue
+- Bug fixes MUST follow the Reproduction-First Debugging workflow (write failing test FIRST)
 
 ### No-Give-Up Rule (NON-NEGOTIABLE)
 
@@ -152,6 +157,45 @@ When E2E tests fail, follow this diagnosis process:
 ### Console error captured
 - Fix application error first, then re-run test
 - Do NOT modify test to ignore the error
+
+## Bug Fix Flow (Constitution: Reproduction-First Debugging)
+
+When a bug is reported, follow this systematic workflow:
+
+### Phase 1: Capture & Analyze
+1. **Capture the failing request**: Save the exact steps, request body, and error response
+2. **Identify the endpoint/component**: Extract the route, component, or function involved
+3. **Extract test data**: Parse the data to create test fixtures
+4. **Document expected vs actual**: Note what should happen vs what was returned
+
+### Phase 2: Reproduce with Test
+1. **Write a failing test FIRST** (E2E or integration test)
+2. **Test through the full stack** - NOT individual functions in isolation
+3. **Use descriptive test name** including bug reference (e.g., `"BUG-123: Product list shows wrong count"`)
+4. **Setup realistic fixtures** representing the bug's preconditions
+5. **Verify the test fails** with the same error as the reported bug
+
+### Phase 3: Root Cause Analysis
+1. **Trace backward**: Follow the call chain from error to origin
+2. **Distinguish symptoms from causes**: The error message is a symptom, find the root cause
+3. **Use debugger/logging**: Add temporary logging to understand control flow
+4. **Form hypotheses**: List potential causes and systematically eliminate them
+5. **Document findings**: Record the root cause before implementing fix
+
+### Phase 4: Fix & Verify
+1. **Fix at the source**: Address root cause, NOT symptoms
+2. **Run the reproduction test**: Verify it now passes
+3. **Run full test suite**: Ensure no regressions
+4. **Update documentation**: If the bug revealed unclear behavior, update docs
+
+## AI Agent Requirements
+
+- AI agents MUST write a failing reproduction test BEFORE attempting any fix
+- AI agents MUST NOT skip the reproduction step even for "obvious" bugs
+- AI agents MUST verify the test fails with the reported error before proceeding
+- AI agents MUST apply Root Cause Tracing - no superficial fixes
+- AI agents MUST run full test suite after fix to catch regressions
+- AI agents MUST document the root cause analysis process
 
 ## Context
 

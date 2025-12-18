@@ -14,6 +14,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before writing tests for an unfamiliar system, follow the System Exploration Protocol (SEP) to understand the code path from route to storage layer. This ensures tests are written with correct data seeding and assertions.
 
+## Rationale (ROOT-CAUSE-TRACING)
+
+Root cause analysis requires understanding the full system. The System Exploration Protocol ensures AI agents understand the complete data flow before writing tests or debugging issues. This prevents superficial fixes and ensures tests validate actual behavior.
+
 ## Core Principles (NON-NEGOTIABLE)
 
 ### System Exploration Protocol
@@ -169,6 +173,22 @@ src/routes/_authenticated/workflows/index.tsx
 - Write tests that pass regardless of data
 - Use generic assertions that don't verify actual content
 - Skip the storage layer trace step
+- Implement fixes without understanding the full code path
+
+## AI Agent Requirements
+
+- AI agents MUST complete System Exploration Protocol before writing tests for unfamiliar routes
+- AI agents MUST document the code trace in test files
+- AI agents MUST use correct localStorage keys from store configuration
+- AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when tests fail
+- AI agents MUST verify data flow matches OpenAPI spec (OPENAPI-FIRST)
+
+## Integration with Other Workflows
+
+- **theplant.test-data-seeding**: Use traced localStorage keys for data seeding
+- **theplant.openapi-first**: Verify API calls match OpenAPI spec
+- **theplant.msw-mock-backend**: Verify MSW handlers implement traced endpoints
+- **theplant.root-cause-tracing**: Use code trace for debugging
 
 ## Context
 
