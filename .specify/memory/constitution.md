@@ -1,17 +1,25 @@
 <!--
 SYNC IMPACT REPORT - 2025-12-17
 ================================
-Version change: 2.8.0 → 2.8.1 (PATCH)
+Version change: 2.5.0 → 2.6.0 (MINOR)
 
-Changes:
-- Added spec/ directory to Code Organization section
-- spec/ directory contains API specification documents (human-readable)
-- Added *.md - for feature development
+Modified Principles:
+- Principle I (E2E Testing Discipline): Enhanced test data requirements
+  - Added requirement to use TypeScript types from openapi.yaml for test data
+  - Added Zustand persist store seeding pattern with page.reload()
+  - Added correct localStorage key documentation (pim-mock-db)
+- Principle III (Root Cause Tracing): Added No-Give-Up Rule
+  - AI agents MUST NOT abandon problems by reverting to simpler approaches
+  - AI agents MUST continue investigating until root cause is found
+  - Added violation and correct behavior examples
 
-Rationale:
-- Documents the new spec/ directory for API specification documents
-- Distinguishes between OpenAPI spec (machine-readable) and API docs (human-readable)
-- Provides clear guidance on where to place API documentation
+Added Sections:
+- Test Data MUST Use Generated TypeScript Types (NON-NEGOTIABLE)
+- Seeding Pattern for Zustand Persist Stores
+- No-Give-Up Rule (NON-NEGOTIABLE)
+
+Removed Sections:
+- None
 
 Templates Updated:
 - ✅ plan-template.md - No changes needed
@@ -191,6 +199,304 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Example violation: `test('should display activities')` with only `expect(header).toBeVisible()` - this tests the header, not activities
 - Example correct: `test('should display activities')` with `expect(activityItems.count()).toBeGreaterThan(0)`
 
+**AI Test Writing Guidelines (NON-NEGOTIABLE)**
+
+The following guidelines enable AI agents to write effective E2E tests autonomously without human intervention.
+
+**Selector Strategy Hierarchy (NON-NEGOTIABLE)**
+AI agents MUST use selectors in this priority order:
+1. `data-testid` - Most stable, explicitly added for testing, survives refactoring
+2. `role` - Semantic, accessible, follows ARIA patterns (e.g., `getByRole('button')`)
+3. `text` - Human-readable but fragile, changes with copy updates (e.g., `getByText('Submit')`)
+4. `CSS` - Last resort, most fragile, breaks with styling changes (e.g., `locator('.btn')`)
+
+Example:
+```typescript
+// ✅ Priority 1: data-testid (best)
+page.getByTestId('submit-button')
+
+// ✅ Priority 2: role (good)
+page.getByRole('button', { name: /submit/i })
+
+// ⚠️ Priority 3: text (acceptable)
+page.getByText('Submit')
+
+// ❌ Priority 4: CSS (avoid)
+page.locator('.submit-btn')
+```
+
+**Test Assertion Anti-Patterns (NON-NEGOTIABLE)**
+AI agents MUST NOT use these patterns:
+
+| Anti-Pattern | Why Bad | Correct Pattern |
+|--------------|---------|-----------------|
+| `expect(body).toBeVisible()` | Tests nothing meaningful | Test specific feature elements |
+| `expect(header).toBeVisible()` alone | Proxy assertion, doesn't test feature | Test actual feature content |
+| Guessing selectors without reading code | Causes strict mode violations | Read code or HTML dump first |
+| Using `.first()` without understanding why | Masks selector specificity issues | Make selector more specific |
+
+Example violation:
+```typescript
+// ❌ BAD: Tests nothing about the feature
+test('should display products', async ({ page }) => {
+  await page.goto('/products');
+  await expect(page.locator('body')).toBeVisible();
+});
+
+// ✅ GOOD: Tests actual feature behavior
+test('should display products', async ({ page }) => {
+  await page.goto('/products');
+  await expect(page.getByRole('heading', { name: /products/i })).toBeVisible();
+  await expect(page.getByTestId('product-list')).toBeVisible();
+  await expect(page.locator('[data-testid="product-item"]').first()).toBeVisible();
+});
+```
+
+**Error Diagnosis Flowchart (NON-NEGOTIABLE)**
+When tests fail, AI agents MUST follow this diagnosis process using the HTML dump output:
+
+1. **"strict mode violation" error** (multiple elements match)
+   - Read the error message for element count and suggestions
+   - Action: Make selector more specific using `data-testid`, or use `.first()` only if multiple matches are expected
+
+2. **"element not found" error**
+   - Check HTML dump for:
+     - Element exists with different attributes → Update selector to match actual attributes
+     - Element truly missing → Check if feature is implemented
+     - Page shows error boundary/crash → Fix application bug first
+
+3. **"timeout" error**
+   - Check HTML dump for:
+     - Page loaded but element missing → Wrong selector or missing feature
+     - Page shows loading state → Add explicit wait for content
+     - Page shows error boundary → Fix application crash first
+
+4. **Console error captured**
+   - Fix application error first, then re-run test
+   - Do NOT modify test to ignore the error
+
+**System Exploration Protocol (NON-NEGOTIABLE)**
+Before writing tests for an unfamiliar system, AI agents MUST follow this protocol:
+
+**Step 1: Read Route Definitions**
+- Explore `src/routes/` directory structure
+- List all route files to understand available pages
+- Note route parameters and authentication requirements
+- Example: `find_by_name` or `list_dir` on `src/routes/`
+
+**Step 2: Trace Code to Storage Layer (NON-NEGOTIABLE)**
+For every route, AI agents MUST trace the code path from route → component → hooks → storage:
+
+1. **Read the route file** to find which component it renders
+2. **Read the component** to find which hooks/data fetching it uses
+3. **Read the hooks** to find which API endpoints or storage keys it accesses
+4. **Read the MSW handlers or storage layer** to understand the data schema
+
+Example trace for `/products`:
+```
+src/routes/_authenticated/products/index.tsx
+  → renders Products component
+    → src/features/products/index.tsx
+      → uses useProducts() hook
+        → src/features/products/hooks/use-products.ts
+          → calls api.GET('/api/products')
+            → src/mocks/handlers.ts
+              → reads from localStorage key 'prototype_products'
+```
+
+**Step 3: Identify Required Test Data**
+From the storage layer trace, identify:
+- What data entities the route displays (products, users, categories, etc.)
+- What fields are required for each entity
+- What relationships exist between entities
+- What states/variations need testing (empty, single item, multiple items, error states)
+
+**Step 4: Provide Test Data in beforeEach (NON-NEGOTIABLE)**
+Every test MUST seed its own data in `beforeEach`. Tests MUST NOT rely on pre-existing data.
+
+**Test Data MUST Use Generated TypeScript Types (NON-NEGOTIABLE)**
+Test data MUST be typed using TypeScript types generated from `openapi.yaml`. This ensures:
+- Compile-time validation of test data schema
+- Automatic detection of API schema changes
+- Consistent data structure between tests and application
+
+```typescript
+// ✅ GOOD: Import types from generated API schemas
+import type { Product } from '@/lib/api/generated/schemas';
+
+// Helper function with proper typing
+const createTestProduct = (
+  id: string, 
+  sku: string, 
+  name: string, 
+  price: number, 
+  status: Product['status'] = 'active'
+): Product => ({
+  id,
+  sku,
+  name: { en: name },
+  slug: name.toLowerCase().replace(/\s+/g, '-'),
+  description: { en: `Description for ${name}` },
+  shortDescription: { en: `Short desc for ${name}` },
+  status,
+  categoryIds: [],
+  tags: [],
+  attributes: [],
+  variants: [],
+  pricing: { price, currency: 'USD' },
+  mediaIds: [],
+  media: [],
+  seo: { slug: name.toLowerCase().replace(/\s+/g, '-') },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+
+// ❌ BAD: Untyped object literals that may miss required fields
+const badProduct = { id: '1', name: 'Test', price: 99 }; // Missing required fields!
+```
+
+**Seeding Pattern for Zustand Persist Stores**
+When the app uses Zustand with persist middleware:
+1. Navigate to app first to access localStorage
+2. Seed data with correct localStorage key (check store.ts for `name` in persist config)
+3. Call `page.reload()` to force Zustand to re-hydrate from localStorage
+4. Navigate to target route
+
+```typescript
+test.describe('Products', () => {
+  const testProducts: Product[] = [
+    createTestProduct('1', 'SKU-001', 'Test Product 1', 99.99, 'active'),
+    createTestProduct('2', 'SKU-002', 'Test Product 2', 149.99, 'draft'),
+  ];
+
+  test('should display products with seeded data', async ({ page }) => {
+    // 1. Navigate to app first to access localStorage
+    await page.goto('/');
+    
+    // 2. Seed test data with correct localStorage key
+    await page.evaluate((products) => {
+      const existingData = localStorage.getItem('pim-mock-db'); // Check store.ts for key
+      const data = existingData ? JSON.parse(existingData) : { state: {} };
+      data.state = data.state || {};
+      data.state.products = products;
+      data.state.isSeeded = true;
+      localStorage.setItem('pim-mock-db', JSON.stringify(data));
+    }, testProducts);
+    
+    // 3. CRITICAL: Full page reload to force Zustand to re-hydrate
+    await page.reload();
+    
+    // 4. Navigate to target route
+    await page.goto('/products');
+    
+    // Assert on the ACTUAL seeded data
+    await expect(page.getByText('Test Product 1')).toBeVisible();
+    await expect(page.getByText('SKU-001')).toBeVisible();
+  });
+});
+```
+
+**Step 5: Test All Data Cases (NON-NEGOTIABLE)**
+For each route, AI agents MUST write tests for these data scenarios:
+
+| Scenario | Test Data | Expected Behavior |
+|----------|-----------|-------------------|
+| Empty state | `[]` or `null` | Shows empty state message/illustration |
+| Single item | `[{...}]` | Shows single item correctly |
+| Multiple items | `[{...}, {...}, {...}]` | Shows all items, pagination if applicable |
+| Error state | Invalid data or API error | Shows error message |
+| Loading state | Delay in data | Shows loading indicator |
+
+Example:
+```typescript
+test.describe('Products - Data Scenarios', () => {
+  test('should show empty state when no products exist', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('prototype_products', JSON.stringify([]));
+    });
+    await page.goto('/products');
+    await expect(page.getByText(/no products/i)).toBeVisible();
+  });
+
+  test('should display single product', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('prototype_products', JSON.stringify([
+        { id: '1', name: 'Only Product', sku: 'ONLY-001' }
+      ]));
+    });
+    await page.goto('/products');
+    await expect(page.getByText('Only Product')).toBeVisible();
+  });
+
+  test('should display multiple products', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('prototype_products', JSON.stringify([
+        { id: '1', name: 'Product A', sku: 'A-001' },
+        { id: '2', name: 'Product B', sku: 'B-001' },
+        { id: '3', name: 'Product C', sku: 'C-001' },
+      ]));
+    });
+    await page.goto('/products');
+    await expect(page.getByText('Product A')).toBeVisible();
+    await expect(page.getByText('Product B')).toBeVisible();
+    await expect(page.getByText('Product C')).toBeVisible();
+  });
+});
+```
+
+**Step 6: Assert on Seeded Data (NON-NEGOTIABLE)**
+Assertions MUST reference the actual test data that was seeded:
+- ❌ BAD: `expect(page.getByRole('table')).toBeVisible()` - doesn't verify data
+- ✅ GOOD: `expect(page.getByText('Test Product 1')).toBeVisible()` - verifies seeded data appears
+
+**CRITICAL**: AI agents MUST NOT:
+- Guess what data exists in the system
+- Write tests that pass regardless of data
+- Use generic assertions that don't verify actual content
+- Skip the storage layer trace step
+
+**Authenticated Route Testing (NON-NEGOTIABLE)**
+For routes requiring authentication, AI agents MUST:
+
+1. Identify auth mechanism by reading route guards or middleware
+2. Create auth fixture in `tests/e2e/utils/test-helpers.ts`
+3. Use fixture in `beforeEach` for authenticated tests
+
+Example fixture:
+```typescript
+export async function loginAsTestUser(page: Page) {
+  // For mock auth (localStorage-based)
+  await page.evaluate(() => {
+    localStorage.setItem('auth_token', 'test-token');
+    localStorage.setItem('user', JSON.stringify({ 
+      id: 1, 
+      email: 'test@example.com' 
+    }));
+  });
+}
+
+// Usage in test
+test.beforeEach(async ({ page }) => {
+  await loginAsTestUser(page);
+});
+```
+
+**Async Content Wait Patterns (NON-NEGOTIABLE)**
+For dynamic content, use explicit waits instead of arbitrary timeouts:
+```typescript
+// ✅ Wait for specific element (preferred)
+await expect(page.getByTestId('data-loaded')).toBeVisible();
+
+// ✅ Wait for network idle (use sparingly)
+await page.waitForLoadState('networkidle');
+
+// ✅ Wait for specific response
+await page.waitForResponse(resp => resp.url().includes('/api/data'));
+
+// ❌ Avoid: arbitrary timeouts (flaky)
+// await page.waitForTimeout(1000);
+```
+
 ### II. Spec Evolution and Test Maintenance
 
 When new specifications are written that conflict with previous specs, the following rules apply:
@@ -238,6 +544,37 @@ When problems occur during development, root cause analysis MUST be performed be
 6. **Verify**: Ensure fix works and doesn't break existing functionality
 7. **Document**: Update docs/tests to prevent regression
 
+**No-Give-Up Rule (NON-NEGOTIABLE)**
+AI agents MUST NEVER abandon a problem by:
+- Reverting to "simpler" approaches that avoid the actual issue
+- Saying "this won't work easily with this architecture"
+- Removing tests or features because they're "too complex"
+- Giving up after initial failures without exhausting root cause analysis
+
+Instead, AI agents MUST:
+1. Continue investigating until the root cause is found
+2. Try multiple hypotheses systematically
+3. Read source code to understand the actual implementation
+4. Document findings even if the fix requires architectural changes
+5. Only escalate to the user when genuinely blocked after thorough investigation
+
+**Example of Violation**:
+```
+❌ "The data seeding approach won't work easily with this architecture. 
+    Let me revert to simpler tests that work with the existing seeded data."
+```
+
+**Example of Correct Behavior**:
+```
+✅ "The seeding isn't working. Let me trace the root cause:
+    1. Reproduce: Data not appearing after seeding localStorage
+    2. Observe: Check the actual localStorage key in store.ts
+    3. Hypothesize: Maybe wrong key? Maybe Zustand not re-hydrating?
+    4. Test: Found key is 'pim-mock-db' not 'mock-db-storage'
+    5. Fix: Use correct key and add page.reload() for re-hydration
+    6. Verify: Tests now pass"
+```
+
 **AI Implementation Requirement**:
 
 - AI agents MUST perform root cause analysis before implementing fixes
@@ -278,7 +615,8 @@ pnpm tsc --noEmit && pnpm test
 
 **Rationale**: TypeScript compilation and test execution are the minimum quality gates that ensure code correctness. Declaring a task complete without passing these checks creates false confidence and technical debt. This principle ensures every completed task maintains the codebase's integrity.
 
-### V. Local Storage Data Layer (MSW Mock Backend)
+
+### IV. Local Storage Data Layer (MSW Mock Backend)
 
 All data persistence MUST use browser localStorage, served via Mock Service Worker (MSW) that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
 
@@ -744,4 +1082,4 @@ This constitution supersedes all other development practices for this clickable 
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
 
-**Version**: 2.8.1 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-17
+**Version**: 2.6.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-17
