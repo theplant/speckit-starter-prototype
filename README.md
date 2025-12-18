@@ -23,31 +23,12 @@ Run this command in your project directory to install everything automatically:
 ```
 
 This will:
-1. Initialize spec-kit with Windsurf AI configuration
-2. Clone the prototype template
-3. Copy `.specify` and `.windsurf` folders to your project
+1. Install `uv` via Homebrew if not already installed
+2. Initialize spec-kit with Windsurf AI configuration
+3. Clone the prototype template
+4. Merge `.specify` and `.windsurf` folders into your project
 
-### Manual Installation
-
-If you prefer to install manually, follow these steps:
-
-#### Step 1: Initialize Your Project with Spec-Kit
-
-```bash
-# Create and initialize your new project
-uvx --from git+https://github.com/github/spec-kit.git specify init my-prototype
-
-# Navigate to your project
-cd my-prototype
-```
-
-#### Step 2: Overlay the Prototype Template
-
-```bash
-git clone --depth 1 git@github.com:theplant/speckit-starter-prototype.git /tmp/speckit-starter-prototype-$$ && cp -r /tmp/speckit-starter-prototype-$$/.specify . && rm -rf /tmp/speckit-starter-prototype-$$
-```
-
-### Step 3: Review and Customize
+### After Installation
 
 ```bash
 # Read the constitution for detailed principles
@@ -57,73 +38,150 @@ cat .specify/memory/constitution.md
 ls -la .specify/templates/
 ```
 
-## What You Get
+## Workflows
 
-### Constitution (Version 2.0.0)
+This starter includes Windsurf workflows for AI-driven development.
 
-See [`.specify/memory/constitution.md`](.specify/memory/constitution.md) for the complete set of principles.
+### ThePlant Discipline Workflows
 
-### Templates
+These workflows enforce development discipline and best practices:
 
-- `spec-template.md` - Feature specification with user stories
-- `plan-template.md` - Implementation planning
-- `tasks-template.md` - Task breakdown
-- `checklist-template.md` - Development checklist
+| Command | Description |
+|---------|-------------|
+| `/theplant.e2e-testing` | Apply E2E testing discipline - Playwright-only with console error capture and HTML dump |
+| `/theplant.msw-mock-backend` | Set up MSW to intercept HTTP requests and serve data from localStorage |
+| `/theplant.openapi-first` | Define API spec before implementation, generate types, use typed client |
+| `/theplant.root-cause-tracing` | Trace problems backward through call chain, fix source not symptoms |
+| `/theplant.system-exploration` | Trace route → component → hooks → storage to understand data flow |
+| `/theplant.test-data-seeding` | Seed localStorage with typed test data for Zustand persist stores |
+
+### Speckit Feature Workflows
+
+These workflows guide the feature development lifecycle:
+
+| Command | Description |
+|---------|-------------|
+| `/speckit.specify` | Create feature specification from natural language description |
+| `/speckit.clarify` | Identify underspecified areas and ask clarification questions |
+| `/speckit.plan` | Generate technical implementation plan with data models and contracts |
+| `/speckit.tasks` | Break down plan into actionable, dependency-ordered tasks |
+| `/speckit.implement` | Execute tasks with autonomous test-fix cycles |
+| `/speckit.analyze` | Cross-artifact consistency and quality analysis |
+| `/speckit.checklist` | Generate custom checklist for current feature |
+
+### Typical Workflow
+
+```
+/speckit.specify → /speckit.plan → /speckit.tasks → /speckit.implement
+```
+
+## Constitution Principles
+
+The constitution (`.specify/memory/constitution.md`) defines core development principles:
+
+### E2E Testing Discipline
+- **Playwright-only testing** - No unit tests, no integration tests in isolation
+- **Console error capture** - Tests fail immediately on browser console errors
+- **HTML dump on failure** - Page content dumped for AI debugging
+- **1-second action timeout** - Fast failure for broken selectors
+
+### MSW Mock Backend
+- **Mock Service Worker** intercepts HTTP requests
+- **localStorage persistence** - All data stored in browser
+- **OpenAPI-first** - API contract defined before implementation
+- **Type-safe client** - Generated types from OpenAPI spec
+
+### Root Cause Tracing
+- **No superficial fixes** - Trace problems to their source
+- **No-give-up rule** - AI must continue investigating until root cause found
+- **Test-fix cycles** - Autonomous debugging without human intervention
+
+### OpenAPI-First Architecture
+- **Schema-first design** - Define API in `openapi.yaml` before coding
+- **Generated types** - TypeScript types from `openapi-typescript`
+- **Typed API client** - `openapi-fetch` for compile-time safety
+- **Backend-ready** - Swap MSW for real API with config change
 
 ## Technology Stack
 
-- **Language**: TypeScript (strict mode)
-- **Framework**: React with functional components and hooks
-- **Build Tool**: Vite
-- **Package Manager**: pnpm
-- **Data Layer**: Browser localStorage + React Context
-- **UI**: Tailwind CSS + shadcn/ui + Lucide icons
-- **Testing**: Playwright E2E only
-- **Routing**: React Router
+| Category | Technology |
+|----------|------------|
+| **Language** | TypeScript (strict mode) |
+| **Framework** | React with functional components and hooks |
+| **Build Tool** | Vite |
+| **Package Manager** | pnpm |
+| **API Layer** | OpenAPI 3.0+ spec, openapi-typescript, openapi-fetch |
+| **Mock Backend** | MSW (Mock Service Worker) + localStorage |
+| **UI** | Tailwind CSS + shadcn/ui + Lucide icons |
+| **Testing** | Playwright E2E only |
+| **Routing** | React Router |
 
 ## Project Structure
 
 ```
 my-prototype/
-├── .specify/              # Spec-kit configuration
+├── .specify/                    # Spec-kit configuration
 │   ├── memory/
-│   │   └── constitution.md
-│   └── templates/
+│   │   └── constitution.md      # Development principles
+│   └── templates/               # Spec, plan, tasks templates
+├── .windsurf/
+│   └── workflows/               # AI workflow definitions
 ├── src/
-│   ├── types/             # TypeScript interfaces for data entities
-│   ├── hooks/             # Custom hooks (useLocalStorage, etc.)
-│   ├── components/        # Reusable UI components
-│   ├── pages/             # Route-level components
-│   ├── lib/               # Utilities (storage.ts, etc.)
-│   └── data/              # Seed data for demo/testing
+│   ├── api/
+│   │   ├── openapi.yaml         # API contract (source of truth)
+│   │   ├── generated/           # Generated types (DO NOT EDIT)
+│   │   └── client.ts            # Typed API client
+│   ├── mocks/
+│   │   ├── handlers.ts          # MSW request handlers
+│   │   └── browser.ts           # MSW browser worker setup
+│   ├── types/                   # TypeScript interfaces
+│   ├── hooks/                   # Custom React hooks
+│   ├── components/              # Reusable UI components
+│   ├── pages/                   # Route-level components
+│   └── lib/                     # Utilities (storage.ts, etc.)
 └── tests/
-    └── e2e/               # Playwright E2E tests
-        └── utils/         # Test utilities
+    └── e2e/                     # Playwright E2E tests
+        └── utils/               # Test helpers, fixtures
 ```
 
 ## Development Workflow
 
-1. **Define Types**: Create TypeScript interfaces in `src/types/`
-2. **Write E2E Tests**: Create failing tests in `tests/e2e/`
-3. **Verify Tests Fail**: `pnpm test:e2e` - new tests MUST fail
-4. **Implement Storage**: Create localStorage hooks/utilities
-5. **Implement Components**: Build UI components consuming hooks
-6. **Verify Tests Pass**: Run full test suite - all tests MUST pass
+1. **Define API Contract** - Create/update `src/api/openapi.yaml`
+2. **Generate Types** - Run `pnpm api:generate`
+3. **Write E2E Tests** - Create failing tests in `tests/e2e/`
+4. **Implement MSW Handlers** - Add handlers in `src/mocks/handlers.ts`
+5. **Build Components** - Implement UI using typed API client
+6. **Verify Tests Pass** - Run `pnpm test:e2e`
 
-## Testing Requirements
+## Testing Guidelines
 
-All testing is done with Playwright E2E tests:
+### Selector Priority (NON-NEGOTIABLE)
+1. `data-testid` - Most stable, survives refactoring
+2. `role` - Semantic, accessible (e.g., `getByRole('button')`)
+3. `text` - Human-readable but fragile
+4. `CSS` - Last resort, most fragile
 
-- ✅ Tests use localStorage for data persistence
-- ✅ All routes and user interactions covered
-- ✅ Console errors captured and visible in output
-- ✅ Tests are independent and can run in parallel
-- ✅ Playwright runs on port 5199 to avoid dev server conflicts
-- ✅ AI-driven autonomous test-fix cycles
+### Test Data Seeding
+```typescript
+test('should display products', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate((products) => {
+    localStorage.setItem('pim-mock-db', JSON.stringify({
+      state: { products, isSeeded: true }
+    }));
+  }, testProducts);
+  await page.reload(); // Force Zustand re-hydration
+  await page.goto('/products');
+  await expect(page.getByText('Test Product')).toBeVisible();
+});
+```
+
+### Console Error Capture
+Tests automatically fail on console errors - no manual assertions needed.
 
 ## Command Execution
 
-All CLI commands MUST run with default values - never wait for user input:
+All CLI commands MUST run with default values:
 
 ```bash
 # Project setup
@@ -134,27 +192,21 @@ pnpm dlx shadcn@latest init --defaults
 
 # Playwright setup
 pnpm create playwright --yes
+
+# Generate API types
+pnpm api:generate
 ```
-
-## Contributing
-
-This template is designed to be forked and customized. Feel free to:
-
-- Modify the constitution for your specific prototype needs
-- Add organization-specific UI principles
-- Customize templates
-- Share improvements back to the community
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details
 
-## Support
+## Links
 
-- Constitution: See `.specify/memory/constitution.md`
-- Spec-kit base: https://github.com/github/spec-kit
-- This template: https://github.com/theplant/speckit-starter-prototype
+- **Constitution**: `.specify/memory/constitution.md`
+- **Spec-kit**: https://github.com/github/spec-kit
+- **This template**: https://github.com/theplant/speckit-starter-prototype
 
 ---
 
-**Version**: 2.0.0 | **Last Updated**: 2025-12-13
+**Version**: 2.6.0 | **Last Updated**: 2025-12-18

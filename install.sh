@@ -4,6 +4,12 @@ set -e
 
 echo "🚀 Installing Speckit Starter for Clickable Prototypes..."
 
+# Check if uvx is available, install uv via brew if not
+if ! command -v uvx &> /dev/null; then
+    echo "📦 uvx not found, installing uv via Homebrew..."
+    brew install uv
+fi
+
 # Step 1: Run uvx specify init with windsurf AI and sh script
 echo "📦 Initializing spec-kit..."
 uvx --from git+https://github.com/github/spec-kit.git specify init --ai=windsurf --script=sh --force .
