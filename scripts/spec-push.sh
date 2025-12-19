@@ -7,13 +7,13 @@ HISTORY_FILE=".spec-push-history"
 REMOTE_URL="git@github.com:theplant/speckit-starter-prototype.git"
 TEMP_DIR=$(mktemp -d)
 
-# 读取上次使用的分支名
+# Read last used branch name
 last_branch=""
 if [ -f "$HISTORY_FILE" ]; then
     last_branch=$(cat "$HISTORY_FILE")
 fi
 
-# 显示提示信息
+# Display prompt
 echo "=== Spec Push to $REMOTE_URL ==="
 echo ""
 
@@ -25,13 +25,13 @@ else
     read -p "Enter branch name (e.g., feat/my-feature): " branch
 fi
 
-# 验证分支名不为空
+# Validate branch name is not empty
 if [ -z "$branch" ]; then
     echo "Error: Branch name cannot be empty"
     exit 1
 fi
 
-# 保存分支名到历史记录
+# Save branch name to history
 echo "$branch" > "$HISTORY_FILE"
 
 echo ""
