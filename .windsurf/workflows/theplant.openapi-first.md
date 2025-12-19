@@ -57,7 +57,42 @@ For Go backend projects, the same OpenAPI spec can generate server code:
 - Generated `StrictServerInterface` provides type-safe request/response handling
 - Backend implements the generated interface directly (NO separate service interface)
 
+## Prerequisites
+
+Before defining the OpenAPI spec, AI agents MUST run `/theplant.system-exploration` to understand:
+- What routes exist in the application
+- What API endpoints each route calls
+- What data entities are used
+- What CRUD operations are needed
+
+This ensures the OpenAPI spec covers all actual API usage in the codebase.
+
 ## Execution Steps
+
+### 0. System Exploration (NON-NEGOTIABLE)
+
+Before writing or updating the OpenAPI spec, AI agents MUST:
+
+1. **Run `/theplant.system-exploration`** to trace all routes and their API calls
+2. **Document all API endpoints** discovered during exploration
+3. **Identify any manually-written API calls** that should use Orval-generated hooks instead
+
+```bash
+# List all route files
+find src/routes -name "*.tsx" | head -50
+
+# Search for manual fetch/axios calls that should be replaced
+grep -r "fetch\(" src/ --include="*.ts" --include="*.tsx" | grep -v node_modules | grep -v generated
+grep -r "axios\." src/ --include="*.ts" --include="*.tsx" | grep -v node_modules | grep -v generated
+
+# Search for manual React Query hooks that should be replaced with Orval
+grep -r "useQuery\|useMutation" src/ --include="*.ts" --include="*.tsx" | grep -v node_modules | grep -v generated
+```
+
+**If manual API calls are found**, they MUST be:
+1. Added to the OpenAPI spec
+2. Regenerated with Orval
+3. Replaced with Orval-generated hooks
 
 ### 1. Setup Orval
 
@@ -196,6 +231,33 @@ components:
           type: integer
 ```
 
+### 3.1. Validate OpenAPI Specification
+
+Before generating code, validate the OpenAPI spec to catch errors early:
+
+```bash
+# Install OpenAPI validator
+pnpm add -D @redocly/openapi-cli
+
+# Add validation script to package.json
+{
+  "scripts": {
+    "api:validate": "openapi lint src/api/openapi.yaml",
+    "api:generate": "pnpm api:validate && orval"
+  }
+}
+
+# Run validation
+pnpm api:validate
+```
+
+Common validation errors to fix:
+- Missing `operationId` (required for Orval to generate hook names)
+- Undefined schema references in `$ref`
+- Missing required fields in request/response schemas
+- Invalid HTTP status codes
+- Duplicate operationIds across endpoints
+
 ### 4. Generate TypeScript Types and Hooks
 
 ```bash
@@ -239,6 +301,129 @@ function CreateUserForm() {
   }
   
   // ...
+}
+```
+
+### 5.1. Query Parameters and Filtering
+
+Define query parameters in OpenAPI spec:
+
+```yaml
+paths:
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+```
+
+Orval generates hooks with typed parameters:
+
+```typescript
+import { useListUsers } from '@/api/generated/endpoints/users'
+
+function UserList() {
+  const [status, setStatus] = useState<'active' | 'inactive'>('active')
+  const [search, setSearch] = useState('')
+  
+  // Orval hook accepts params object with type safety
+  const { data, isLoading } = useListUsers({
+    status,
+    search,
+    page: 1,
+    limit: 20,
+  })
+  
+  // ...
+}
+```
+
+### 5.2. Pagination Patterns
+
+**Consistent pagination structure** across all list endpoints:
+
+```yaml
+components:
+  schemas:
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    
+    # Generic list response pattern
+    UserListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+```
+
+Component usage with pagination:
+
+```typescript
+import { useListUsers } from '@/api/generated/endpoints/users'
+
+function PaginatedUserList() {
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useListUsers({ page, limit: 20 })
+  
+  const users = data?.data?.data || []
+  const meta = data?.data?.meta
+  
+  return (
+    <>
+      <UserTable users={users} />
+      {meta && (
+        <Pagination
+          currentPage={meta.page}
+          totalPages={meta.totalPages}
+          onPageChange={setPage}
+        />
+      )}
+    </>
+  )
 }
 ```
 
@@ -286,6 +471,92 @@ export const customFetch = async <T>(
 }
 ```
 
+### 6.1. Error Handling Patterns
+
+Extend custom fetch wrapper with comprehensive error handling:
+
+```typescript
+// src/api/custom-fetch.ts
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+    public details?: unknown
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+export const customFetch = async <T>(
+  url: string,
+  options: RequestInit
+): Promise<T> => {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}))
+      throw new ApiError(
+        response.status,
+        errorBody.error?.code || 'UNKNOWN_ERROR',
+        errorBody.error?.message || `HTTP ${response.status}`,
+        errorBody.error?.details
+      )
+    }
+    
+    return response.json()
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    
+    // Network errors, timeouts, etc.
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      error instanceof Error ? error.message : 'Network request failed'
+    )
+  }
+}
+```
+
+Handle errors in components:
+
+```typescript
+import { useCreateUser } from '@/api/generated/endpoints/users'
+import { ApiError } from '@/api/custom-fetch'
+import { toast } from 'sonner'
+
+function CreateUserForm() {
+  const createMutation = useCreateUser({
+    mutation: {
+      onError: (error) => {
+        if (error instanceof ApiError) {
+          switch (error.code) {
+            case 'VALIDATION_ERROR':
+              toast.error('Invalid input: ' + error.message)
+              break
+            case 'DUPLICATE_EMAIL':
+              toast.error('Email already exists')
+              break
+            default:
+              toast.error('Failed to create user')
+          }
+        } else {
+          toast.error('Network error')
+        }
+      },
+    },
+  })
+}
+```
+
 ### 7. Verify Types Are Up-to-Date
 
 ```bash
@@ -294,6 +565,37 @@ pnpm api:generate
 
 # Type check the project
 pnpm tsc --noEmit
+```
+
+### 7.1. TypeScript Configuration for Orval
+
+Recommended `tsconfig.json` settings for optimal type safety:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,  // Orval generates optional fields
+    "skipLibCheck": true  // Skip checking generated .d.ts files for performance
+  }
+}
+```
+
+**Handle optional fields from generated types:**
+
+```typescript
+import type { User } from '@/api/generated/models'
+
+function UserProfile({ user }: { user: User }) {
+  // ✅ CORRECT: Check optional fields before use
+  const displayName = user.displayName ?? user.name
+  const avatar = user.avatarUrl ?? '/default-avatar.png'
+  
+  // ❌ WRONG: Assuming optional field exists
+  const initials = user.displayName.substring(0, 2)  // Type error if displayName is optional
+}
 ```
 
 ## MSW Integration with Orval (NON-NEGOTIABLE)
@@ -447,6 +749,191 @@ pnpm tsc --noEmit
 - AI agents MUST verify MSW handlers match OpenAPI spec
 - AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when debugging type mismatches
 - When OpenAPI spec changes, AI agents MUST run `pnpm api:generate` then update MSW handlers to match
+
+### Migration Difficulty - Root Cause Tracing (NON-NEGOTIABLE)
+
+When migrating existing code to use Orval-generated hooks and encountering significant difficulties:
+
+1. **DO NOT give up or revert to manual hooks/types**
+2. **Apply `/theplant.root-cause-tracing` workflow** to systematically trace the issue
+3. **Common migration issues and their root causes:**
+   - **Enum name mismatches**: Orval generates full names like `WORKFLOW_STATUS_DRAFT` instead of `DRAFT`. Fix ALL references.
+   - **Hook interface changes**: Orval hooks expect `{ data: RequestType }` wrapper. Update all mutation calls.
+   - **Response type changes**: Orval hooks return `AxiosResponse<T>`, access `.data` to get the actual data.
+   - **Type incompatibilities**: Generated types may have optional fields where manual types had required fields. Add null checks.
+
+4. **Systematic approach:**
+   ```bash
+   # Find all enum usages that need updating
+   grep -rn "TriggerType\.\|WorkflowStatus\.\|StepType\." src/ --include="*.tsx" --include="*.ts"
+   
+   # Find all imports from deleted files
+   grep -rn "from '@/types/workflow'\|from '@/hooks/use-workflows'\|from '@/services/" src/
+   
+   # Run TypeScript check to see all errors
+   pnpm tsc --noEmit 2>&1 | head -100
+   ```
+
+5. **Fix pattern for enum migrations:**
+   - `TriggerType.MANUAL` → `TriggerType.TRIGGER_TYPE_MANUAL`
+   - `WorkflowStatus.DRAFT` → `WorkflowStatus.WORKFLOW_STATUS_DRAFT`
+   - `StepType.ACTIVITY` → `StepType.STEP_TYPE_ACTIVITY`
+   - `ActivityCategory.DATA` → `ActivityCategory.ACTIVITY_CATEGORY_DATA`
+   - `ComparisonOperator.EQUALS` → `ComparisonOperator.COMPARISON_OPERATOR_EQUALS`
+
+6. **Persist until all tests pass** - run `pnpm tsc --noEmit` and `pnpm test:e2e` after each batch of fixes
+
+## Frontend Component Requirements (NON-NEGOTIABLE)
+
+### Orval-Generated Hooks Usage
+
+**All frontend components MUST use Orval-generated React Query hooks directly.** Manual API service files and custom hooks that wrap fetch/axios are FORBIDDEN.
+
+#### Required Pattern
+
+```typescript
+// ✅ CORRECT: Import directly from Orval-generated endpoints
+import { useListWorkflows, useCreateWorkflow } from '@/api/generated/endpoints/workflows/workflows';
+import { useListUsers } from '@/api/generated/endpoints/users/users';
+import type { Workflow, User } from '@/api/generated/models';
+
+function MyComponent() {
+  // Use Orval hooks directly - they return AxiosResponse<T>
+  const { data, isLoading } = useListWorkflows();
+  const workflows = data?.data; // Access .data from AxiosResponse
+  
+  const createMutation = useCreateWorkflow();
+  // Mutation expects { data: CreateWorkflowRequest }
+  createMutation.mutate({ data: { name: 'New Workflow', triggerType: 'TRIGGER_TYPE_MANUAL' } });
+}
+```
+
+#### Forbidden Patterns
+
+```typescript
+// ❌ FORBIDDEN: Manual service files with fetch/axios
+import { workflowService } from '@/services/workflow-api';
+
+// ❌ FORBIDDEN: Custom wrapper hooks around manual services
+import { useWorkflows, useCreateWorkflow } from '@/hooks/use-workflows';
+
+// ❌ FORBIDDEN: Manual types instead of generated ones
+import type { Workflow } from '@/types/workflow';
+```
+
+#### Adding Toast Notifications and Cache Invalidation
+
+Components that need toast notifications or cache invalidation should handle them directly in the component:
+
+```typescript
+// ✅ CORRECT: Handle side effects in the component
+import { useCreateWorkflow, getListWorkflowsQueryKey } from '@/api/generated/endpoints/workflows/workflows';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+function CreateWorkflowButton() {
+  const queryClient = useQueryClient();
+  const createMutation = useCreateWorkflow({
+    mutation: {
+      onSuccess: (response) => {
+        queryClient.invalidateQueries({ queryKey: getListWorkflowsQueryKey() });
+        toast.success('Workflow created successfully');
+      },
+      onError: () => {
+        toast.error('Failed to create workflow');
+      },
+    },
+  });
+
+  return (
+    <Button onClick={() => createMutation.mutate({ data: { name: 'New', triggerType: 'TRIGGER_TYPE_MANUAL' } })}>
+      Create
+    </Button>
+  );
+}
+```
+
+### Type Imports
+
+**All types MUST come from `@/api/generated/models`:**
+
+```typescript
+// ✅ CORRECT: Import types from generated models
+import type { 
+  Workflow, 
+  WorkflowStatus, 
+  TriggerType,
+  CreateWorkflowRequest,
+  ListWorkflowsResponse,
+} from '@/api/generated/models';
+
+// ✅ CORRECT: Import const enums for runtime use
+import { WorkflowStatus, TriggerType } from '@/api/generated/models';
+
+// ❌ FORBIDDEN: Manual type definitions
+import type { Workflow } from '@/types/workflow';
+```
+
+### Utility Functions
+
+For utility functions like `getWorkflowStatusLabel()` or `getWorkflowStatusVariant()`, define them in a separate utils file that imports from generated models:
+
+```typescript
+// src/features/workflows/utils/workflow-utils.ts
+import { WorkflowStatus, TriggerType } from '@/api/generated/models';
+
+export function getWorkflowStatusLabel(status: WorkflowStatus): string {
+  switch (status) {
+    case WorkflowStatus.WORKFLOW_STATUS_DRAFT: return 'Draft';
+    case WorkflowStatus.WORKFLOW_STATUS_ACTIVE: return 'Active';
+    case WorkflowStatus.WORKFLOW_STATUS_PAUSED: return 'Paused';
+    case WorkflowStatus.WORKFLOW_STATUS_ARCHIVED: return 'Archived';
+    default: return 'Unknown';
+  }
+}
+
+export function getWorkflowStatusVariant(status: WorkflowStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (status) {
+    case WorkflowStatus.WORKFLOW_STATUS_DRAFT: return 'secondary';
+    case WorkflowStatus.WORKFLOW_STATUS_ACTIVE: return 'default';
+    case WorkflowStatus.WORKFLOW_STATUS_PAUSED: return 'outline';
+    case WorkflowStatus.WORKFLOW_STATUS_ARCHIVED: return 'destructive';
+    default: return 'secondary';
+  }
+}
+```
+
+### Migration Checklist
+
+When migrating existing code or writing new features:
+
+1. **Delete manual files:**
+   - `src/services/*-api.ts` (manual fetch services)
+   - `src/hooks/use-*.ts` (manual React Query hooks)
+   - `src/types/*.ts` (manual type definitions)
+
+2. **Update imports in components:**
+   - Replace `@/services/*` → use Orval-generated hooks directly
+   - Replace `@/hooks/*` → use Orval-generated hooks directly
+   - Replace `@/types/*` → `@/api/generated/models`
+
+3. **Handle side effects in components:**
+   - Toast notifications → use `onSuccess`/`onError` callbacks
+   - Cache invalidation → use `queryClient.invalidateQueries()`
+
+4. **Update MSW handlers:**
+   - Import types from `@/api/generated/models`
+   - Ensure handler responses match generated types exactly
+
+5. **Verify with TypeScript:**
+   ```bash
+   pnpm tsc --noEmit
+   ```
+
+6. **Run E2E tests:**
+   ```bash
+   pnpm test:e2e
+   ```
 
 ## Context
 

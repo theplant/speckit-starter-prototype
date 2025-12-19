@@ -14,6 +14,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Ensure all E2E tests follow ThePlant's testing discipline principles. This workflow guides writing, reviewing, and fixing Playwright E2E tests.
 
+## Prerequisites
+
+Before running E2E tests, ensure the following workflows have been executed:
+
+1. **`/theplant.openapi-first`** - OpenAPI spec defined and Orval types generated
+2. **`/theplant.msw-mock-backend`** - MSW handlers implemented for all API endpoints
+3. **`/theplant.test-data-seeding`** - Test data seeding utilities created
+
+**AI agents MUST verify these prerequisites exist before writing E2E tests.** If any are missing, inform the user that the prerequisite workflow should be run first.
+
 ## Rationale (E2E-TESTING)
 
 E2E tests catch real-world issues that unit tests cannot. Testing through the full stack (browser → API → storage) validates actual user behavior. This aligns with the E2E-TESTING principle adapted for frontend prototype development.
@@ -72,7 +82,31 @@ ls playwright.config.ts
 
 # Verify test helpers exist
 ls tests/e2e/utils/test-helpers.ts
+
+# Verify MSW handlers exist
+ls src/mocks/handlers.ts
+ls src/mocks/browser.ts
 ```
+
+### 1.1 Running E2E Tests
+
+E2E tests require MSW mock backend to be running. See `/theplant.msw-mock-backend` for setup details.
+
+```bash
+# Step 1: Start dev server (MSW enabled by default when API URL env var is not set)
+pnpm dev
+
+# Step 2: Run E2E tests (in another terminal)
+pnpm test:e2e
+```
+
+#### Common Issues and Solutions
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `net::ERR_FAILED` on API calls | MSW not enabled | Ensure API URL env var is NOT set (see `/theplant.msw-mock-backend`) |
+| Empty data in tests | localStorage not seeded | Use test data seeding (see `/theplant.test-data-seeding`) |
+| Playwright `webServer` timeout | Dev server already running | Use `reuseExistingServer: true` or disable `webServer` |
 
 ### 2. Console Error Capture (NON-NEGOTIABLE)
 
@@ -213,7 +247,7 @@ Verify `playwright.config.ts` has correct settings:
 
 ```typescript
 export default defineConfig({
-  timeout: 10000,
+  timeout: 5000,
   expect: { timeout: 1000 },
   use: {
     actionTimeout: 1000,  // Fast fail for missing elements

@@ -134,13 +134,27 @@ export const worker = setupWorker(...handlers);
 
 ### 4. Initialize MSW in App
 
+AI agents MUST discover the project's API URL environment variable by searching for patterns like:
+- `VITE_*_API_URL` or `VITE_*_BASE_URL` in `.env.example`, `.env`, or service files
+- API base URL configuration in service files (e.g., `src/services/*.ts`)
+
+**MSW Logic (project-agnostic):**
+- If the API URL env var is **NOT set** → MSW enabled, app uses relative paths
+- If the API URL env var is **set** → MSW disabled, app uses real backend
+
 Update `src/main.tsx`:
 
 ```typescript
+// AI: Replace VITE_API_URL with the actual env var found in the project
 async function enableMocking() {
-  if (import.meta.env.DEV) {
-    const { worker } = await import('./mocks/browser');
-    return worker.start({ onUnhandledRequest: 'bypass' });
+  const hasRealBackend = !!import.meta.env.VITE_API_URL  // e.g., VITE_WORKFLOW_API_URL
+  
+  if (!hasRealBackend) {
+    const { worker } = await import('./mocks/browser')
+    console.log('[MSW] Mock Service Worker enabled - API calls will be intercepted')
+    return worker.start({ onUnhandledRequest: 'bypass' })
+  } else {
+    console.log('[App] Using real backend API:', import.meta.env.VITE_API_URL)
   }
 }
 
