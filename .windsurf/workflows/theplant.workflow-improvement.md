@@ -12,192 +12,134 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-After completing a task or encountering difficulties during development, analyze the conversation to identify:
-1. Problems that caused delays or confusion
-2. Patterns that led to mistakes
-3. Missing documentation or unclear guidance
-4. Workarounds that should become standard practices
+Analyze conversation issues and update workflows with generalized learnings.
 
-Then either:
-- **Update existing ThePlant workflow files** with generalized learnings, OR
-- **Create new ThePlant workflow files** if the learnings represent a distinct discipline not covered by existing workflows
+## How to Execute This Workflow
 
-## Rationale (WORKFLOW-IMPROVEMENT)
+**⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**
 
-Workflows are shared across multiple projects and teams. By systematically capturing learnings from real development sessions, we continuously improve the guidance available to AI agents and developers. This creates a positive feedback loop where each project benefits from lessons learned in previous projects.
+**DO NOT read the Steps section below and execute them manually.** The runner handles:
+- Step sequencing and state tracking
+- Nested workflow execution
+- AI task delegation with proper context
 
-## Core Principles (NON-NEGOTIABLE)
+```bash
+npx tsx .specify/scripts/workflow-runner.ts theplant.workflow-improvement
+```
 
-### Generalization Rule (NON-NEGOTIABLE)
+Run this command, then follow the runner's instructions. The runner will tell you what to do next.
 
-- Learnings MUST be generalized and NOT project-specific
-- Examples MUST use generic names (e.g., `MyEntity`, `myField`) NOT actual project names
-- Patterns MUST be applicable to any similar technology stack
-- Focus on the **underlying principle**, not the specific instance
 
-### File Path Generalization (NON-NEGOTIABLE)
-
-When documenting file paths in workflows:
-
-1. **Use conventional paths** that are standard across projects:
-   - ✅ `src/mocks/handlers.ts` - Standard MSW location
-   - ✅ `tests/e2e/utils/test-helpers.ts` - Standard test utils location
-   - ✅ `playwright.config.ts` - Standard config location
-   - ❌ `/Users/john/projects/my-app/src/...` - Absolute paths are FORBIDDEN
-
-2. **Use pattern descriptions** instead of exact paths when paths vary:
-   - ✅ "the project's API service files (e.g., `src/services/*.ts` or `src/api/*.ts`)"
-   - ✅ "the main entry point (e.g., `src/main.tsx` or `src/index.tsx`)"
-   - ❌ `src/features/workflows/workflows-page.tsx` - Too specific
-
-3. **Use discovery commands** when paths are project-dependent:
-   ```bash
-   # Find the API configuration
-   grep -rn "API_URL\|BASE_URL" src/ --include="*.ts" --include="*.tsx"
-   
-   # Find the main entry point
-   ls src/main.tsx src/index.tsx 2>/dev/null
-   ```
-
-4. **Document the pattern, not the instance**:
-   - ✅ "MSW handlers should be in `src/mocks/handlers.ts`"
-   - ❌ "Update `/Users/sunfmin/Developments/workflow-frontend/src/mocks/handlers.ts`"
-
-### Analysis Process
-
-1. **Review the conversation** for:
-   - Tasks that took multiple attempts to complete
-   - TypeScript/lint errors that required investigation
-   - Misunderstandings about API patterns or conventions
-   - Missing information that caused delays
-   - Workarounds or patterns that worked well
-
-2. **Categorize issues** by which workflow they relate to:
-   - `theplant.openapi-first.md` - API generation, Orval hooks, type mismatches
-   - `theplant.e2e-testing.md` - Playwright tests, MSW handlers, test patterns
-   - `theplant.msw-mock-backend.md` - Mock data, localStorage, API mocking
-   - `theplant.root-cause-tracing.md` - Debugging strategies, investigation patterns
-   - `theplant.system-exploration.md` - Understanding data flow, tracing paths
-   - `theplant.test-data-seeding.md` - Test data patterns, Zustand stores
-   - `theplant.reference-ui.md` - UI patterns, component design
-   - **OR** identify if a new workflow is needed for a distinct discipline
-
-3. **Decide: Update or Create**:
-   - **Update existing workflow** if the learning fits within an existing discipline
-   - **Create new workflow** if the learning represents a new, distinct discipline that:
-     - Doesn't fit naturally into existing workflows
-     - Addresses a recurring pattern across multiple projects
-     - Has enough depth to warrant its own workflow file
-     - Follows the naming convention: `theplant.[discipline-name].md`
-
-4. **Formulate updates/new content** that are:
-   - Clear and actionable
-   - Include both the problem pattern AND the solution
-   - Provide code examples where helpful (using generic names)
-   - Add to existing sections rather than creating redundant content
-   - For new workflows, follow the standard structure (see Example New Workflow below)
-
-## Execution Steps
+## Steps
 
 ### Step 1: Identify Issues from Conversation
 
-Analyze the current conversation and list:
+**Why:** Systematic issue identification ensures no learnings are lost. Each issue becomes a potential workflow improvement.
+
+Analyze the current conversation and document:
 
 ```markdown
 ## Issues Identified
 
 ### Issue 1: [Brief description]
-- **What happened**: [Description of the problem]
+- **What happened**: [Description]
 - **Root cause**: [Why it happened]
 - **Solution applied**: [How it was fixed]
-- **Generalized learning**: [What should be documented]
-- **Target workflow**: [Which theplant.*.md file to update]
+- **Generalized learning**: [What to document]
+- **Target workflow**: [Which theplant.*.md to update]
 
 ### Issue 2: ...
 ```
 
-### Step 2: Review Target Workflows
+### Step 2: Categorize Issues
 
-For each target workflow identified:
-1. Read the current content of the workflow file
-2. Identify the appropriate section to add the learning
-3. Check if similar guidance already exists (avoid duplication)
+**Why:** Categorization ensures learnings go to the right workflow file, avoiding duplication and keeping workflows focused.
 
-### Step 3: Propose Updates or New Workflows
+| Issue Type | Target Workflow |
+|------------|-----------------|
+| API/Type mismatches, Orval hooks | `theplant.openapi-first.md` |
+| Selector strategies, test patterns | `theplant.e2e-testing.md` |
+| Handler patterns, data persistence | `theplant.msw-mock-backend.md` |
+| Investigation strategies, debugging | `theplant.root-cause-tracing.md` |
+| Data flow tracing | `theplant.system-exploration.md` |
+| Test data patterns | `theplant.test-data-seeding.md` |
 
-For each update to existing workflow, show:
-- The target file
-- The section to update
-- The proposed addition (generalized, not project-specific)
+### Step 3: Read Target Workflow Files
 
-For each new workflow, show:
-- The proposed filename: `theplant.[discipline-name].md`
-- The complete workflow content following the standard structure
-- Rationale for why this needs to be a separate workflow
+**Why:** Reading existing content prevents duplication and helps identify the right section for new learnings.
 
-### Step 4: Apply Updates
+```bash
+# Read the workflow file to update
+cat .windsurf/workflows/theplant.[target].md
+```
 
-Apply the updates to existing workflow files or create new workflow files.
+Check:
+1. Current content structure
+2. Appropriate section to add learning
+3. Whether similar guidance already exists (avoid duplication)
 
-## Example Issue Analysis
+### Step 4: Generalize the Learning
 
-### Example: Enum Migration Issues
+**Why:** Workflows are shared across projects. Project-specific content makes workflows less useful for other teams.
 
-**What happened**: When migrating from manual types to Orval-generated types, enum values had different naming conventions (e.g., `Status.ACTIVE` vs `Status.STATUS_ACTIVE`).
+**Generalization Rules:**
+- Use generic names (`MyEntity`, `myField`) NOT project names
+- Use conventional paths (`src/mocks/handlers.ts`) NOT absolute paths
+- Focus on underlying principle, not specific instance
+- Include both problem pattern AND solution
 
-**Root cause**: Orval generates enum values with full prefixes based on the OpenAPI spec, while manual types often use short names.
+**Path Generalization:**
+```bash
+# ✅ GOOD: Standard paths
+src/mocks/handlers.ts
+tests/e2e/utils/test-helpers.ts
+playwright.config.ts
 
-**Solution applied**: Systematically replaced all short enum names with full Orval-generated names using grep and replace_all.
+# ❌ BAD: Absolute paths
+/Users/john/projects/my-app/src/...
 
-**Generalized learning**: Document the enum naming pattern difference and provide a migration checklist.
+# ✅ GOOD: Discovery commands for variable paths
+grep -rn "API_URL" src/ --include="*.ts"
+```
 
-**Target workflow**: `theplant.openapi-first.md`
+### Step 5: Propose Updates
 
-**Proposed update** (generalized):
+**Why:** Proposing before applying allows review and prevents accidental overwrites.
+
+For each update, document:
+- Target file
+- Section to update
+- Proposed addition (generalized)
+
+**Example:**
 ```markdown
-### Enum Migration Pattern
+**Target**: `theplant.openapi-first.md`
+**Section**: Step 9: Migrate Components
 
-When migrating from manual types to Orval-generated types:
+**Add**:
+When migrating enums:
 - Manual: `EntityStatus.ACTIVE`
 - Orval: `EntityStatus.ENTITY_STATUS_ACTIVE`
 
-Use grep to find all usages:
+Find all usages:
 ```bash
-grep -rn "EntityStatus\." src/ --include="*.tsx" --include="*.ts"
+grep -rn "EntityStatus\." src/ --include="*.ts"
 ```
 ```
 
-## Common Issue Categories
+### Step 6: Apply Updates to Workflow Files
 
-### API/Type Issues → `theplant.openapi-first.md`
-- Type mismatches between manual and generated types
-- Hook interface differences (e.g., mutation argument structure)
-- Response wrapper patterns (AxiosResponse)
-- Enum naming conventions
+**Why:** Applying updates immediately captures learnings while context is fresh.
 
-### Testing Issues → `theplant.e2e-testing.md`
-- Selector strategies that failed
-- Timing/flakiness patterns
-- Console error handling
-- Test data setup problems
+Edit the target workflow files with the generalized learnings.
 
-### Mock Backend Issues → `theplant.msw-mock-backend.md`
-- Handler patterns that didn't work
-- Data persistence issues
-- Request/response format mismatches
+If Needed, Create New Workflow
 
-### Debugging Issues → `theplant.root-cause-tracing.md`
-- Investigation strategies that worked
-- Common false leads to avoid
-- Effective logging patterns
-
-## Example New Workflow Structure
-
-When creating a new ThePlant workflow, follow this structure:
+If learning represents a new discipline, create `theplant.[discipline-name].md`:
 
 ```markdown
 ---
-description: [One-line description of the discipline]
+description: [One-line description]
 ---
 
 ## User Input
@@ -210,35 +152,40 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-[Clear statement of what this workflow helps achieve]
+[What this workflow achieves]
 
-## Rationale ([DISCIPLINE-NAME])
+## Steps
 
-[Why this discipline is important and how it improves development]
+### Step 1: [First deterministic file change]
 
-## Core Principles (NON-NEGOTIABLE)
+[Specific file to create/modify with exact content]
 
-### [Principle Name] (NON-NEGOTIABLE)
+### Step 2: [Next file change]
 
-- [Specific requirements and rules]
-- [More requirements]
+...
 
-## [Process/Steps Section]
+### Step N: [Verification]
 
-[Detailed guidance on how to apply this discipline]
-
-## AI Agent Requirements
-
-- [Specific requirements for AI agents using this workflow]
+[How to verify the workflow worked]
 ```
 
-## AI Agent Requirements
+**New Workflow Criteria:**
+- Doesn't fit naturally into existing workflows
+- Addresses recurring pattern across projects
+- Has enough depth for its own file
+- Follows naming: `theplant.[discipline-name].md`
 
-- AI agents MUST automatically run this workflow after completing complex tasks with multiple issues or blockers
-- AI agents SHOULD detect when a task required multiple attempts, debugging sessions, or workarounds
-- AI agents MUST run this workflow when explicitly requested by the user
-- AI agents MUST NOT add project-specific content to workflows
-- AI agents MUST verify updates don't duplicate existing content
-- AI agents MUST generalize all learnings before adding to workflows
-- When creating new workflows, AI agents MUST follow the standard structure and naming convention
-- AI agents MUST propose updates/new workflows before applying them
+### Step 8: Verify No Duplication
+
+**Why:** Duplicate content makes workflows harder to maintain and can lead to inconsistencies.
+
+```bash
+# Check for similar content in existing workflows
+grep -rn "[key phrase from learning]" .windsurf/workflows/
+```
+
+**Rules:**
+- NEVER add project-specific content
+- NEVER duplicate existing guidance
+- ALWAYS generalize before adding
+- ALWAYS propose updates before applying

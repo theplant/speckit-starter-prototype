@@ -12,186 +12,44 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP requests and serves data from localStorage. This enables prototype development with real HTTP patterns that can seamlessly migrate to a real backend.
+Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP requests and serves data from localStorage.
 
-## Rationale
+## How to Execute This Workflow
 
-MSW enables frontend development with real `fetch()` calls that work identically with a real backend. This aligns with the **OPENAPI-FIRST** principle where the API contract is defined first, and implementation follows. MSW handlers implement the contract locally while the backend team implements the same contract on the server.
+**⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**
 
-## Core Principles (NON-NEGOTIABLE)
+**DO NOT read the Steps section below and execute them manually.** The runner handles:
+- Step sequencing and state tracking
+- Nested workflow execution
+- AI task delegation with proper context
 
-### MSW Architecture
+```bash
+npx tsx .specify/scripts/workflow-runner.ts theplant.msw-mock-backend
+```
 
-- MUST use Mock Service Worker (MSW) library for API mocking
-- MSW handlers MUST be defined in `src/mocks/handlers.ts`
-- MSW browser worker setup MUST be in `src/mocks/browser.ts`
-- MSW MUST be started in development mode only (not in production builds)
-- Handlers MUST use standard Fetch API Request/Response objects
-- Handlers MUST implement endpoints defined in OpenAPI spec (single source of truth)
-- This enables the frontend to use real `fetch()` calls that work identically with a real backend
+Run this command, then follow the runner's instructions. The runner will tell you what to do next.
 
-### OpenAPI Contract Alignment (OPENAPI-FIRST)
 
-- MSW handlers MUST match the OpenAPI specification exactly
-- Request/response schemas MUST match OpenAPI definitions
-- HTTP status codes MUST follow OpenAPI spec (201 for create, 404 for not found, etc.)
-- Error responses MUST follow a consistent structure (code, message, details)
+## Steps
 
-### Data Storage Rules (NON-NEGOTIABLE)
+### Step 1: Install MSW
 
-- All data MUST be stored in localStorage with JSON serialization
-- **NEVER use in-memory variables** for data storage - data will be lost on page navigation
-- Each data entity type MUST have its own localStorage key (or use Zustand persist store)
-- Data operations MUST be synchronous and immediate within handlers
-- CRUD operations MUST update localStorage directly
-- Storage keys MUST be documented for test data seeding (see theplant.test-data-seeding workflow)
-
-**Why localStorage is required:**
-- MSW runs in the browser's service worker context
-- Page navigations cause the main page to reload, but service worker persists
-- In-memory data in handlers is lost when the page reloads
-- localStorage persists across page navigations, enabling multi-page test flows
-
-### ID Generation Rules (NON-NEGOTIABLE)
-
-- All entity IDs MUST use UUID format via `crypto.randomUUID()`
-- NEVER use timestamp-based IDs like `entity-${Date.now()}`
-- Mock data IDs MUST match the format expected by the real backend (typically UUID)
-- This ensures tests can use consistent ID patterns (e.g., `/[a-f0-9-]+$/` regex)
-- Example: `id: crypto.randomUUID()` → `"550e8400-e29b-41d4-a716-446655440000"`
-
-## Execution Steps
-
-### 1. Install MSW
+**Why:** MSW intercepts HTTP requests at the network level, enabling real `fetch()` calls that work identically with a real backend.
 
 ```bash
 pnpm add -D msw
 pnpm dlx msw init public/ --save
 ```
 
-### 2. Create MSW Handlers
+### Step 2: Create `src/lib/storage.ts`
 
-Create `src/mocks/handlers.ts`:
-
-```typescript
-import { http, HttpResponse } from 'msw';
-import { storage, STORAGE_KEYS } from '@/lib/storage';
-
-export const handlers = [
-  // GET all items
-  http.get('/api/products', () => {
-    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
-    return HttpResponse.json(products);
-  }),
-
-  // GET single item
-  http.get('/api/products/:id', ({ params }) => {
-    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
-    const product = products.find((p: any) => p.id === params.id);
-    if (!product) {
-      return new HttpResponse(null, { status: 404 });
-    }
-    return HttpResponse.json(product);
-  }),
-
-  // POST create item
-  http.post('/api/products', async ({ request }) => {
-    const body = await request.json();
-    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
-    const newProduct = {
-      ...body,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    products.push(newProduct);
-    storage.set(STORAGE_KEYS.PRODUCTS, products);
-    return HttpResponse.json(newProduct, { status: 201 });
-  }),
-
-  // PUT update item
-  http.put('/api/products/:id', async ({ params, request }) => {
-    const body = await request.json();
-    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
-    const index = products.findIndex((p: any) => p.id === params.id);
-    if (index === -1) {
-      return new HttpResponse(null, { status: 404 });
-    }
-    products[index] = {
-      ...products[index],
-      ...body,
-      updatedAt: new Date().toISOString(),
-    };
-    storage.set(STORAGE_KEYS.PRODUCTS, products);
-    return HttpResponse.json(products[index]);
-  }),
-
-  // DELETE item
-  http.delete('/api/products/:id', ({ params }) => {
-    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
-    const filtered = products.filter((p: any) => p.id !== params.id);
-    storage.set(STORAGE_KEYS.PRODUCTS, filtered);
-    return new HttpResponse(null, { status: 204 });
-  }),
-];
-```
-
-### 3. Create MSW Browser Setup
-
-Create `src/mocks/browser.ts`:
-
-```typescript
-import { setupWorker } from 'msw/browser';
-import { handlers } from './handlers';
-
-export const worker = setupWorker(...handlers);
-```
-
-### 4. Initialize MSW in App
-
-AI agents MUST discover the project's API URL environment variable by searching for patterns like:
-- `VITE_*_API_URL` or `VITE_*_BASE_URL` in `.env.example`, `.env`, or service files
-- API base URL configuration in service files (e.g., `src/services/*.ts`)
-
-**MSW Logic (project-agnostic):**
-- If the API URL env var is **NOT set** → MSW enabled, app uses relative paths
-- If the API URL env var is **set** → MSW disabled, app uses real backend
-
-Update `src/main.tsx`:
-
-```typescript
-// AI: Replace VITE_API_URL with the actual env var found in the project
-async function enableMocking() {
-  const hasRealBackend = !!import.meta.env.VITE_API_URL  // e.g., VITE_WORKFLOW_API_URL
-  
-  if (!hasRealBackend) {
-    const { worker } = await import('./mocks/browser')
-    console.log('[MSW] Mock Service Worker enabled - API calls will be intercepted')
-    return worker.start({ onUnhandledRequest: 'bypass' })
-  } else {
-    console.log('[App] Using real backend API:', import.meta.env.VITE_API_URL)
-  }
-}
-
-enableMocking().then(() => {
-  // Render app after MSW is ready
-  ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-});
-```
-
-### 5. Create Storage Wrapper with Logging
-
-Create `src/lib/storage.ts`:
+**Why:** All data must be stored in localStorage because in-memory data is lost on page navigation. The storage wrapper provides logging for debugging.
 
 ```typescript
 export const STORAGE_KEYS = {
   PRODUCTS: 'prototype_products',
   USERS: 'prototype_users',
-  // ... other keys
+  // Add keys for each entity type
 } as const;
 
 const isTestMode = () => {
@@ -226,75 +84,176 @@ export const storage = {
 };
 ```
 
-## LocalStorage Transparency (NON-NEGOTIABLE)
+**Storage Rules:**
+- All data MUST be stored in localStorage (NOT in-memory variables)
+- In-memory data is lost on page navigation
+- localStorage persists across page navigations
 
-- Storage wrapper MUST log key and value on every read/write when running in test mode
-- This enables AI agents to see data flow when debugging test failures
-- Logging MUST include operation type (READ/WRITE/DELETE) for traceability
+### Step 3: Create `src/mocks/handlers.ts`
 
-## Error Handling
-
-MSW handlers MUST implement consistent error responses:
+**Why:** MSW handlers implement the API contract locally. Using `crypto.randomUUID()` ensures IDs match the format expected by real backends.
 
 ```typescript
-// Error response structure (matches backend contract)
-interface ErrorResponse {
-  code: string;     // e.g., "PRODUCT_NOT_FOUND"
-  message: string;  // e.g., "Product not found"
-  details?: string; // Optional debug info (dev mode only)
+import { http, HttpResponse } from 'msw';
+import { storage, STORAGE_KEYS } from '@/lib/storage';
+
+export const handlers = [
+  // GET all items
+  http.get('/api/products', () => {
+    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
+    return HttpResponse.json({ data: products });
+  }),
+
+  // GET single item
+  http.get('/api/products/:id', ({ params }) => {
+    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
+    const product = products.find((p: any) => p.id === params.id);
+    if (!product) {
+      return HttpResponse.json(
+        { code: 'NOT_FOUND', message: 'Product not found' },
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json({ data: product });
+  }),
+
+  // POST create item
+  http.post('/api/products', async ({ request }) => {
+    const body = await request.json();
+    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
+    const newProduct = {
+      ...body,
+      id: crypto.randomUUID(),  // MUST use UUID, not timestamp
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    products.push(newProduct);
+    storage.set(STORAGE_KEYS.PRODUCTS, products);
+    return HttpResponse.json({ data: newProduct }, { status: 201 });
+  }),
+
+  // PUT update item
+  http.put('/api/products/:id', async ({ params, request }) => {
+    const body = await request.json();
+    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
+    const index = products.findIndex((p: any) => p.id === params.id);
+    if (index === -1) {
+      return HttpResponse.json(
+        { code: 'NOT_FOUND', message: 'Product not found' },
+        { status: 404 }
+      );
+    }
+    products[index] = {
+      ...products[index],
+      ...body,
+      updatedAt: new Date().toISOString(),
+    };
+    storage.set(STORAGE_KEYS.PRODUCTS, products);
+    return HttpResponse.json({ data: products[index] });
+  }),
+
+  // DELETE item
+  http.delete('/api/products/:id', ({ params }) => {
+    const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
+    const filtered = products.filter((p: any) => p.id !== params.id);
+    storage.set(STORAGE_KEYS.PRODUCTS, filtered);
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+```
+
+**Handler Rules:**
+- Use `crypto.randomUUID()` for IDs (NOT timestamp-based)
+- Handler paths MUST match OpenAPI spec exactly
+- HTTP status codes MUST follow OpenAPI spec (201 for create, 404 for not found)
+
+### Step 4: Create `src/mocks/browser.ts`
+
+**Why:** This file sets up the MSW service worker that intercepts requests in the browser.
+
+```typescript
+import { setupWorker } from 'msw/browser';
+import { handlers } from './handlers';
+
+export const worker = setupWorker(...handlers);
+```
+
+### Step 5: Update `src/main.tsx`
+
+**Why:** MSW should only be enabled when no real backend is configured. This allows seamless switching between mock and real backends.
+
+Find the project's API URL environment variable first:
+```bash
+grep -rn "VITE_.*API\|VITE_.*URL" .env* src/ --include="*.ts" --include="*.tsx" 2>/dev/null | head -5
+```
+
+Then update `src/main.tsx`:
+
+```typescript
+async function enableMocking() {
+  // Replace VITE_API_URL with actual env var found in project
+  const hasRealBackend = !!import.meta.env.VITE_API_URL
+  
+  if (!hasRealBackend) {
+    const { worker } = await import('./mocks/browser')
+    console.log('[MSW] Mock Service Worker enabled')
+    return worker.start({ onUnhandledRequest: 'bypass' })
+  } else {
+    console.log('[App] Using real backend:', import.meta.env.VITE_API_URL)
+  }
 }
 
-// Example error handler
-http.get('/api/products/:id', ({ params }) => {
-  const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
-  const product = products.find((p: any) => p.id === params.id);
-  if (!product) {
-    return HttpResponse.json(
-      { code: 'PRODUCT_NOT_FOUND', message: 'Product not found' },
-      { status: 404 }
-    );
-  }
-  return HttpResponse.json(product);
+enableMocking().then(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
 });
 ```
 
-## Playwright Configuration
+**MSW Logic:**
+- API URL env var NOT set → MSW enabled
+- API URL env var set → MSW disabled, use real backend
 
-Playwright MUST NOT start its own dev server:
+### Step 6: Verify Setup
+
+**Why:** Verification ensures MSW is correctly configured and will intercept API requests.
+
+```bash
+# Check service worker exists
+ls public/mockServiceWorker.js
+
+# Check handlers exist
+ls src/mocks/handlers.ts
+
+# Check MSW enabled in main.tsx
+grep -q "enableMocking" src/main.tsx && echo "OK" || echo "MISSING"
+
+# Start dev server and verify MSW logs
+pnpm dev
+# Should see: [MSW] Mock Service Worker enabled
+```
+
+### Step 7: Add Types from Orval
+
+**Why:** Importing types from Orval ensures MSW handlers match the OpenAPI spec exactly, catching type mismatches at compile time.
+
+Import types from Orval-generated models for type safety:
 
 ```typescript
-// playwright.config.ts
-export default defineConfig({
-  use: {
-    baseURL: 'http://localhost:5173',
-  },
-  webServer: undefined, // Tests connect to existing dev server
-});
+// src/mocks/handlers.ts
+import type {
+  ListProductsResponse,
+  ProductItemResponse,
+  Product,
+} from '@/api/generated/models'
+
+http.get('/api/v1/products', () => {
+  const products = storage.get<Product[]>(STORAGE_KEYS.PRODUCTS) || []
+  return HttpResponse.json<ListProductsResponse>({
+    data: products,
+    meta: { page: 1, limit: 20, total: products.length, totalPages: 1 },
+  })
+})
 ```
-
-The dev server MUST be started manually before running tests:
-```bash
-pnpm dev  # In one terminal
-pnpm test:e2e  # In another terminal
-```
-
-## Backend Migration Path
-
-To migrate to real backend:
-1. Remove MSW initialization from `main.tsx`
-2. Update API client `baseUrl` to point to real backend
-3. No other frontend code changes required
-4. OpenAPI spec serves as contract for backend implementation
-5. Backend team implements the same OpenAPI spec using oapi-codegen (Go) or equivalent
-
-## AI Agent Requirements
-
-- AI agents MUST verify MSW handlers match OpenAPI spec before adding new endpoints
-- AI agents MUST use consistent error response structure
-- AI agents MUST document localStorage keys for test data seeding
-- AI agents MUST NOT hardcode data - use storage layer for all data access
-- AI agents MUST apply Root Cause Tracing (ROOT-CAUSE-TRACING) when debugging MSW issues
-
-## Context
-
-$ARGUMENTS
