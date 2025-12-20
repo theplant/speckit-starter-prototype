@@ -1,5 +1,5 @@
 ---
-description: Apply E2E testing discipline following ThePlant's testing principles - Playwright-only testing with console error capture, HTML dump on failure, and strict selector hierarchy.
+description: Refactor all code to apply E2E testing discipline following ThePlant's testing principles - Playwright-only testing with console error capture, HTML dump on failure, and strict selector hierarchy.
 ---
 
 ## User Input
@@ -12,18 +12,53 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Ensure all E2E tests follow ThePlant's testing discipline principles. This workflow guides writing, reviewing, and fixing Playwright E2E tests.
+Refactor all code and E2E tests follow ThePlant's testing discipline principles. This workflow guides writing, reviewing, and fixing Playwright E2E tests.
 
 ## Prerequisites
 
-Before running E2E tests, ensure the following workflows have been executed:
+**AI agents MUST verify these prerequisites exist before writing E2E tests.** If any are missing, the workflow should automatically apply them.
 
-1. **`/theplant.openapi-first`** - OpenAPI spec defined and Orval types generated
-2. **`/theplant.msw-mock-backend`** - MSW handlers implemented for all API endpoints
-3. **`/theplant.test-data-seeding`** - Test data seeding utilities created
-4. **`/theplant.system-exploration`** - System exploration completed to understand read/write paths
+### Prerequisite Verification Steps (NON-NEGOTIABLE)
 
-**AI agents MUST verify these prerequisites exist before writing E2E tests.** If any are missing, inform the user that the prerequisite workflow should be run first.
+AI agents MUST run these verification checks BEFORE proceeding with E2E test work:
+
+```bash
+# 1. Check OpenAPI spec exists
+ls src/api/openapi.yaml 2>/dev/null || echo "MISSING: OpenAPI spec"
+
+# 2. Check Orval config exists
+ls orval.config.ts 2>/dev/null || echo "MISSING: Orval config"
+
+# 3. Check MSW handlers exist
+ls src/mocks/handlers.ts 2>/dev/null || echo "MISSING: MSW handlers"
+
+# 4. Check MSW browser setup exists
+ls src/mocks/browser.ts 2>/dev/null || echo "MISSING: MSW browser setup"
+
+# 5. Check MSW service worker exists
+ls public/mockServiceWorker.js 2>/dev/null || echo "MISSING: MSW service worker"
+
+# 6. Check test data seeding utilities exist
+ls tests/e2e/utils/seed-data/index.ts 2>/dev/null || echo "MISSING: Test data seeding"
+
+# 7. Check MSW is enabled in main.tsx
+grep -q "enableMocking" src/main.tsx && echo "OK: MSW enabled in main.tsx" || echo "MISSING: MSW enablement"
+```
+
+### Auto-Apply Missing Prerequisites
+
+If ANY prerequisite is missing, AI agents MUST:
+
+1. **Run `/theplant.system-exploration`** first to trace routes and API calls
+2. **Run `/theplant.openapi-first`** to create OpenAPI spec and Orval config
+3. **Run `/theplant.msw-mock-backend`** to create MSW handlers
+4. **Run `/theplant.test-data-seeding`** to create seed utilities
+
+After applying prerequisites, run the infrastructure verification test:
+
+```bash
+pnpm test:e2e --grep "Infrastructure"
+```
 
 ## Rationale (E2E-TESTING)
 
