@@ -33,8 +33,35 @@ Workflows are shared across multiple projects and teams. By systematically captu
 - Learnings MUST be generalized and NOT project-specific
 - Examples MUST use generic names (e.g., `MyEntity`, `myField`) NOT actual project names
 - Patterns MUST be applicable to any similar technology stack
-- Avoid referencing specific file paths from the current project
 - Focus on the **underlying principle**, not the specific instance
+
+### File Path Generalization (NON-NEGOTIABLE)
+
+When documenting file paths in workflows:
+
+1. **Use conventional paths** that are standard across projects:
+   - ✅ `src/mocks/handlers.ts` - Standard MSW location
+   - ✅ `tests/e2e/utils/test-helpers.ts` - Standard test utils location
+   - ✅ `playwright.config.ts` - Standard config location
+   - ❌ `/Users/john/projects/my-app/src/...` - Absolute paths are FORBIDDEN
+
+2. **Use pattern descriptions** instead of exact paths when paths vary:
+   - ✅ "the project's API service files (e.g., `src/services/*.ts` or `src/api/*.ts`)"
+   - ✅ "the main entry point (e.g., `src/main.tsx` or `src/index.tsx`)"
+   - ❌ `src/features/workflows/workflows-page.tsx` - Too specific
+
+3. **Use discovery commands** when paths are project-dependent:
+   ```bash
+   # Find the API configuration
+   grep -rn "API_URL\|BASE_URL" src/ --include="*.ts" --include="*.tsx"
+   
+   # Find the main entry point
+   ls src/main.tsx src/index.tsx 2>/dev/null
+   ```
+
+4. **Document the pattern, not the instance**:
+   - ✅ "MSW handlers should be in `src/mocks/handlers.ts`"
+   - ❌ "Update `/Users/sunfmin/Developments/workflow-frontend/src/mocks/handlers.ts`"
 
 ### Analysis Process
 

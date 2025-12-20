@@ -37,13 +37,28 @@ MSW enables frontend development with real `fetch()` calls that work identically
 - HTTP status codes MUST follow OpenAPI spec (201 for create, 404 for not found, etc.)
 - Error responses MUST follow a consistent structure (code, message, details)
 
-### Data Storage Rules
+### Data Storage Rules (NON-NEGOTIABLE)
 
 - All data MUST be stored in localStorage with JSON serialization
+- **NEVER use in-memory variables** for data storage - data will be lost on page navigation
 - Each data entity type MUST have its own localStorage key (or use Zustand persist store)
 - Data operations MUST be synchronous and immediate within handlers
 - CRUD operations MUST update localStorage directly
 - Storage keys MUST be documented for test data seeding (see theplant.test-data-seeding workflow)
+
+**Why localStorage is required:**
+- MSW runs in the browser's service worker context
+- Page navigations cause the main page to reload, but service worker persists
+- In-memory data in handlers is lost when the page reloads
+- localStorage persists across page navigations, enabling multi-page test flows
+
+### ID Generation Rules (NON-NEGOTIABLE)
+
+- All entity IDs MUST use UUID format via `crypto.randomUUID()`
+- NEVER use timestamp-based IDs like `entity-${Date.now()}`
+- Mock data IDs MUST match the format expected by the real backend (typically UUID)
+- This ensures tests can use consistent ID patterns (e.g., `/[a-f0-9-]+$/` regex)
+- Example: `id: crypto.randomUUID()` → `"550e8400-e29b-41d4-a716-446655440000"`
 
 ## Execution Steps
 
