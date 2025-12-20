@@ -414,6 +414,8 @@ export function executeNextTask(): void {
   
   if (!nextTask) {
     config.log?.(`\n🎉 All tasks completed for workflow: ${workflowName}`);
+    config.log?.('🗑️  Tasks file cleaned up');
+    unlinkSync(config.tasksFile);
     return;
   }
   

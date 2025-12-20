@@ -1,3 +1,8 @@
+/*
+ * This file is a test file for the workflow-runner.ts file.
+ * Use npx vitest run .specify/scripts/workflow-runner.test.ts to run the tests.
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -305,7 +310,7 @@ describe('Workflow Runner - Real Workflow Tests', () => {
       completeTask('T001');
       
       // Should show next task (T002) with its full content
-      expect(logs.some(l => l.includes('NEXT TASK'))).toBe(true);
+      expect(logs.some(l => l.includes('Next Task'))).toBe(true);
       expect(logs.some(l => l.includes('T002'))).toBe(true);
       
       // The next task description should be complete
@@ -490,7 +495,7 @@ describe('Workflow Runner - Real Workflow Tests', () => {
       completeTask('T001');
       
       // Should show next task info
-      expect(logs.some(l => l.includes('NEXT TASK'))).toBe(true);
+      expect(logs.some(l => l.includes('Next Task'))).toBe(true);
       expect(logs.some(l => l.includes('T002'))).toBe(true);
       expect(logs.some(l => l.includes('AI TASK'))).toBe(true);
       expect(logs.some(l => l.includes('--complete T002'))).toBe(true);
