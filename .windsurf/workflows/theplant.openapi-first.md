@@ -695,7 +695,125 @@ To migrate to real backend:
 - OpenAPI spec MUST be validated before code generation
 - MSW handler paths MUST match OpenAPI spec paths exactly
 
+## Migration Verification (NON-NEGOTIABLE)
+
+**After generating Orval code, AI agents MUST verify and complete migration:**
+
+### Step 1: Check for Manual API Code (MUST RUN)
+
+```bash
+# Find manual service files that should be deleted
+ls src/services/*-api.ts 2>/dev/null && echo "MIGRATION NEEDED: Delete manual service files"
+
+# Find manual hooks that should be replaced
+ls src/hooks/use-*.ts 2>/dev/null | grep -v "use-mobile" && echo "MIGRATION NEEDED: Replace manual hooks"
+
+# Find manual type files that should be replaced
+ls src/types/*.ts 2>/dev/null && echo "MIGRATION NEEDED: Replace manual types"
+
+# Find imports from manual files
+grep -rn "from '@/services/\|from '@/hooks/use-\|from '@/types/" src/ --include="*.ts" --include="*.tsx" | grep -v node_modules | grep -v generated
+```
+
+**If ANY of the above commands produce output, migration is INCOMPLETE.**
+
+### Step 2: Execute Migration (MUST COMPLETE)
+
+For each component using manual API code:
+
+1. **Replace service imports with Orval hooks:**
+   ```typescript
+   // ❌ BEFORE: Manual service
+   import { workflowService } from '@/services/workflow-api';
+   const data = await workflowService.list();
+   
+   // ✅ AFTER: Orval hook
+   import { useListWorkflows } from '@/api/generated/endpoints/workflows/workflows';
+   const { data } = useListWorkflows();
+   ```
+
+2. **Replace manual hooks with Orval hooks:**
+   ```typescript
+   // ❌ BEFORE: Manual hook
+   import { useWorkflows } from '@/hooks/use-workflows';
+   
+   // ✅ AFTER: Orval hook
+   import { useListWorkflows } from '@/api/generated/endpoints/workflows/workflows';
+   ```
+
+3. **Replace manual types with generated types:**
+   ```typescript
+   // ❌ BEFORE: Manual types
+   import type { Workflow } from '@/types/workflow';
+   import { WorkflowStatus } from '@/types/workflow';
+   
+   // ✅ AFTER: Generated types
+   import type { Workflow } from '@/api/generated/models';
+   import { WorkflowStatus } from '@/api/generated/models';
+   ```
+
+### Step 3: Delete Manual Files (MUST COMPLETE)
+
+After all imports are updated:
+
+```bash
+# Delete manual service files
+rm -f src/services/*-api.ts
+
+# Delete manual hook files (keep non-API hooks like use-mobile.ts)
+rm -f src/hooks/use-workflows.ts  # or similar API-related hooks
+
+# Delete manual type files
+rm -f src/types/workflow.ts  # or similar API-related types
+```
+
+### Step 4: Final Verification (MUST PASS)
+
+```bash
+# 1. No manual API imports should exist
+grep -rn "from '@/services/\|from '@/hooks/use-workflows\|from '@/types/workflow'" src/ --include="*.ts" --include="*.tsx" && echo "FAIL: Manual imports still exist" || echo "PASS: No manual imports"
+
+# 2. TypeScript must compile
+pnpm tsc --noEmit && echo "PASS: TypeScript compiles" || echo "FAIL: TypeScript errors"
+
+# 3. Tests must pass
+pnpm test && echo "PASS: Tests pass" || echo "FAIL: Tests fail"
+```
+
+**AI agents MUST NOT consider OpenAPI-First workflow complete until all verification steps pass.**
+
 ## Common Pitfalls When Refactoring to OpenAPI-First
+
+### Incomplete Migration (CRITICAL)
+
+**Problem**: AI agents may generate OpenAPI spec and Orval code but fail to migrate existing components to use the generated hooks.
+
+**Root Cause**: The workflow steps for code generation are clear, but migration steps are often skipped because:
+1. Migration requires updating many files
+2. Orval hooks have different interfaces than manual hooks
+3. Enum values use full prefixes (e.g., `WORKFLOW_STATUS_DRAFT` vs `DRAFT`)
+
+**Solution**: AI agents MUST run the Migration Verification steps above and complete ALL migration before considering the workflow done.
+
+### Orval Hook Interface Differences
+
+Orval-generated hooks have different interfaces than typical manual hooks:
+
+```typescript
+// Manual hook pattern
+const { data, isLoading } = useWorkflows();
+createWorkflow.mutate({ name: 'New', triggerType: TriggerType.MANUAL });
+
+// Orval hook pattern - note the { data: ... } wrapper for mutations
+const { data } = useListWorkflows();
+createWorkflow.mutate({ data: { name: 'New', triggerType: TriggerType.TRIGGER_TYPE_MANUAL } });
+```
+
+Key differences:
+- **Query hooks**: Similar interface, but params are passed differently
+- **Mutation hooks**: Require `{ data: RequestType }` wrapper
+- **Enum values**: Use full prefixes (e.g., `TRIGGER_TYPE_MANUAL` not `MANUAL`)
+- **Path params**: Passed as separate argument (e.g., `{ workflowId: string; data: UpdateRequest }`)
 
 ### Orval Does NOT Generate Zod Schemas
 
