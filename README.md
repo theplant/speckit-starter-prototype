@@ -16,11 +16,11 @@ This repository provides a battle-tested constitution and templates for building
 
 ### Option 1: Start a New Project with shadcn-admin Template
 
-Use `tiged` to scaffold a new project from the excellent [shadcn-admin](https://github.com/satnaing/shadcn-admin) template:
+Use `tiged` to scaffold a new project from the excellent [shadcn-admin](https://github.com/theplant/shadcn-admin) template:
 
 ```bash
 # Create new project from shadcn-admin template
-npx tiged --mode=git satnaing/shadcn-admin my-project
+npx tiged --mode=git theplant/shadcn-admin my-project
 cd my-project
 pnpm install
 

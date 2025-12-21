@@ -12,7 +12,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-This workflow downloads the [shadcn-admin](https://github.com/satnaing/shadcn-admin) project as a reference implementation for UI/UX patterns. The AI should use this codebase as a guide when building user interfaces.
+This workflow downloads the [shadcn-admin](https://github.com/theplant/shadcn-admin) project as a reference implementation for UI/UX patterns. The AI should use this codebase as a guide when building user interfaces.
 
 ## Steps
 
@@ -35,7 +35,7 @@ This workflow downloads the [shadcn-admin](https://github.com/satnaing/shadcn-ad
 
    // turbo
    ```bash
-   npx tiged --mode=git satnaing/shadcn-admin .reference/shadcn-admin
+   npx tiged --mode=git theplant/shadcn-admin .reference/shadcn-admin
    ```
 
    This downloads the shadcn-admin template which includes:
