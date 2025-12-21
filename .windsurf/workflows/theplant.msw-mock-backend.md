@@ -24,7 +24,7 @@ Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP req
 - AI task delegation with proper context
 
 ```bash
-npx tsx .specify/scripts/workflow-runner.ts theplant.msw-mock-backend
+deno run -A https://raw.githubusercontent.com/theplant/workflow-runner/HEAD/run.ts theplant.msw-mock-backend
 ```
 
 Run this command, then follow the runner's instructions. The runner will tell you what to do next.

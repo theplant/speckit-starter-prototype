@@ -24,7 +24,7 @@ Ensure E2E tests properly seed test data into Zustand persist stores via localSt
 - AI task delegation with proper context
 
 ```bash
-npx tsx .specify/scripts/workflow-runner.ts theplant.test-data-seeding
+deno run -A https://raw.githubusercontent.com/theplant/workflow-runner/HEAD/run.ts theplant.test-data-seeding
 ```
 
 Run this command, then follow the runner's instructions. The runner will tell you what to do next.

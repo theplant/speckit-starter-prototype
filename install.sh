@@ -10,6 +10,12 @@ if ! command -v uvx &> /dev/null; then
     brew install uv
 fi
 
+# deno
+if ! command -v deno &> /dev/null; then
+    echo "📦 deno not found, installing deno via Homebrew..."
+    brew install deno
+fi
+
 # Step 1: Run uvx specify init with windsurf AI and sh script
 echo "📦 Initializing spec-kit..."
 uvx --from git+https://github.com/github/spec-kit.git specify init --ai=windsurf --script=sh --force .

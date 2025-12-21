@@ -24,7 +24,7 @@ Ensure all API development follows OpenAPI-First principles. Define the API cont
 - AI task delegation with proper context
 
 ```bash
-npx tsx .specify/scripts/workflow-runner.ts theplant.openapi-first
+deno run -A https://raw.githubusercontent.com/theplant/workflow-runner/HEAD/run.ts theplant.openapi-first
 ```
 
 Run this command, then follow the runner's instructions. The runner will tell you what to do next.

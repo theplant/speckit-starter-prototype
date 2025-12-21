@@ -24,7 +24,7 @@ Analyze conversation issues and update workflows with generalized learnings.
 - AI task delegation with proper context
 
 ```bash
-npx tsx .specify/scripts/workflow-runner.ts theplant.workflow-improvement
+deno run -A https://raw.githubusercontent.com/theplant/workflow-runner/HEAD/run.ts theplant.workflow-improvement
 ```
 
 Run this command, then follow the runner's instructions. The runner will tell you what to do next.

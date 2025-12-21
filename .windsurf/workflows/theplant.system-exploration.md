@@ -24,7 +24,7 @@ Before writing tests for an unfamiliar system, trace **BOTH** the read path (sto
 - AI task delegation with proper context
 
 ```bash
-npx tsx .specify/scripts/workflow-runner.ts theplant.system-exploration
+deno run -A https://raw.githubusercontent.com/theplant/workflow-runner/HEAD/run.ts theplant.system-exploration
 ```
 
 Run this command, then follow the runner's instructions. The runner will tell you what to do next.
