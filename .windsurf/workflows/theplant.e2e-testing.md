@@ -14,6 +14,24 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Refactor all code and E2E tests to follow ThePlant's testing discipline principles.
 
+## CRITICAL: NO SKIPPING ALLOWED
+
+**⚠️ AI MUST NEVER skip any task or nested workflow, regardless of:**
+- Whether the project appears to be "static" or "demo"
+- Whether API endpoints don't exist yet
+- Whether the task seems "not applicable"
+- Whether similar functionality already exists
+
+**For every task, AI MUST:**
+1. **Actually create the files** specified in the task
+2. **Actually run the commands** specified in the task
+3. **Actually implement the code** even if it requires creating new infrastructure
+4. If a task requires API endpoints that don't exist → **CREATE THEM**
+5. If a task requires localStorage that isn't used → **ADD IT**
+6. If a task requires MSW handlers → **CREATE THEM**
+
+**Marking a task complete without doing the work is FORBIDDEN.**
+
 ## How to Execute This Workflow
 
 **⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**
@@ -42,6 +60,7 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 ```typescript
 export default defineConfig({
   maxFailures: 3,
+  reporter: 'list',           // Must be 'list' for AI to see test results
   timeout: 5000,              // 5s max per test - fail fast
   expect: { timeout: 1000 },  // 1s for assertions
   use: {
@@ -223,13 +242,19 @@ export class MyEntityListPage {
 
 ### Step 4: Run OpenAPI-First Workflow
 
+**⚠️ MANDATORY: Do NOT skip this workflow. If the project has no API, CREATE one.**
+
 <!-- runner:workflow:theplant.openapi-first -->
 
 ### Step 5: Run MSW Mock Backend Workflow
 
+**⚠️ MANDATORY: Do NOT skip this workflow. If the project has no MSW, SET IT UP.**
+
 <!-- runner:workflow:theplant.msw-mock-backend -->
 
 ### Step 6: Run Test Data Seeding Workflow
+
+**⚠️ MANDATORY: Do NOT skip this workflow. If the project has no localStorage persistence, ADD IT.**
 
 <!-- runner:workflow:theplant.test-data-seeding -->
 

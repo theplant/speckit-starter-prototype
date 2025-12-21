@@ -14,6 +14,22 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP requests and serves data from localStorage.
 
+## CRITICAL: NO SKIPPING ALLOWED
+
+**⚠️ AI MUST NEVER skip any step in this workflow, regardless of:**
+- Whether the project appears to be "static" or "demo"
+- Whether the project doesn't currently use API calls
+- Whether localStorage isn't currently used
+
+**For every step, AI MUST:**
+1. **Actually install MSW** and initialize it
+2. **Actually create the handler files** specified
+3. **Actually update main.tsx** to start MSW
+4. If the project uses static data → **CREATE MSW handlers that serve that data**
+5. If the project has no localStorage → **ADD localStorage persistence**
+
+**Marking a step complete without doing the work is FORBIDDEN.**
+
 ## How to Execute This Workflow
 
 **⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**

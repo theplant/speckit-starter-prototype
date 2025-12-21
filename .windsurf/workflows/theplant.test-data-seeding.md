@@ -14,6 +14,22 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Ensure E2E tests properly seed test data into Zustand persist stores via localStorage.
 
+## CRITICAL: NO SKIPPING ALLOWED
+
+**⚠️ AI MUST NEVER skip any step in this workflow, regardless of:**
+- Whether the project appears to be "static" or "demo"
+- Whether Zustand persist isn't currently used
+- Whether localStorage isn't currently used for data
+
+**For every step, AI MUST:**
+1. **Actually find or create** the localStorage key structure
+2. **Actually create the seed-data files** specified
+3. **Actually create the seed-helpers.ts** file
+4. If the project doesn't use Zustand persist → **ADD IT or use plain localStorage**
+5. If the project uses static data → **CONVERT IT to localStorage-based data**
+
+**Marking a step complete without doing the work is FORBIDDEN.**
+
 ## How to Execute This Workflow
 
 **⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**

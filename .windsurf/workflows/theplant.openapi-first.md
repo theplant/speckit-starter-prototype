@@ -14,6 +14,22 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Ensure all API development follows OpenAPI-First principles. Define the API contract before implementation, generate TypeScript types and React Query hooks using Orval, and use generated hooks for all data access.
 
+## CRITICAL: NO SKIPPING ALLOWED
+
+**⚠️ AI MUST NEVER skip any step in this workflow, regardless of:**
+- Whether the project appears to be "static" or "demo"
+- Whether API endpoints don't exist yet
+- Whether the project currently uses static data
+
+**For every step, AI MUST:**
+1. **Actually install the packages** specified
+2. **Actually create the files** specified (orval.config.ts, openapi.yaml, etc.)
+3. **Actually run the commands** specified
+4. If the project has no API → **CREATE an openapi.yaml based on the data structures found in the codebase**
+5. If the project uses static data → **CONVERT IT to use API hooks with MSW**
+
+**Marking a step complete without doing the work is FORBIDDEN.**
+
 ## How to Execute This Workflow
 
 **⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**
@@ -111,6 +127,8 @@ This generates:
 
 For custom fetch logic (auth headers, error handling):
 
+**IMPORTANT:** Orval passes a config object, NOT (url, options). The customFetch signature must match:
+
 ```typescript
 export class ApiError extends Error {
   constructor(
@@ -124,26 +142,58 @@ export class ApiError extends Error {
   }
 }
 
+type RequestConfig = {
+  url: string
+  method: string
+  params?: Record<string, unknown>
+  data?: unknown
+  headers?: Record<string, string>
+  signal?: AbortSignal
+}
+
 export const customFetch = async <T>(
-  url: string,
-  options: RequestInit
+  config: RequestConfig,
+  _options?: RequestInit
 ): Promise<T> => {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Content-Type': 'application/json',
-    },
+  const { url, method, params, data, headers, signal } = config
+  
+  // Build URL with query params
+  let fullUrl = url
+  if (params) {
+    const searchParams = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach(v => searchParams.append(key, String(v)))
+      } else if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value))
+      }
+    })
+    const queryString = searchParams.toString()
+    if (queryString) {
+      fullUrl = `${url}?${queryString}`
+    }
+  }
+
+  const response = await fetch(fullUrl, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: data ? JSON.stringify(data) : undefined,
+    signal,
   })
   
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))
     throw new ApiError(
       response.status,
-      errorBody.error?.code || 'UNKNOWN_ERROR',
-      errorBody.error?.message || `HTTP ${response.status}`,
-      errorBody.error?.details
+      errorBody.code || 'UNKNOWN_ERROR',
+      errorBody.message || `HTTP ${response.status}`,
+      errorBody.details
     )
+  }
+  
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return undefined as T
   }
   
   return response.json()
@@ -162,7 +212,61 @@ override: {
 ```
 
 
-### Step 7: Migrate Components to Use Orval Hooks
+### Step 7: Convert Static Data Sources to API Hooks
+
+**Why:** Static data (faker, hardcoded arrays) must be replaced with API hooks at the DATA SOURCE level, not just at the component level. Components that receive data as props may look "clean" but their parent components are importing static data.
+
+**CRITICAL: Find and convert ALL static data imports:**
+
+```bash
+# Find static data imports (faker, hardcoded data files)
+grep -rln "from '.*data/\|from '@faker-js" src/ --include="*.ts" --include="*.tsx" | grep -v generated | grep -v node_modules
+```
+
+**For each file with static data imports:**
+
+1. **Identify the data source pattern:**
+```typescript
+// ❌ BEFORE: Static data import
+import { users } from './data/users'  // faker-generated array
+import { tasks } from './data/tasks'  // static array
+
+// Component passes static data to child
+<UsersTable data={users} />
+```
+
+2. **Replace with API hook:**
+```typescript
+// ✅ AFTER: API hook
+import { useListUsers } from '@/api/generated/endpoints/users/users'
+
+export function Users() {
+  const { data, isLoading, error } = useListUsers()
+  
+  if (isLoading) return <Skeleton />
+  if (error) return <ErrorMessage error={error} />
+  
+  return <UsersTable data={data?.data ?? []} />
+}
+```
+
+3. **Update child component types to use API-generated types:**
+```typescript
+// ❌ BEFORE: Local schema type
+import { type User } from '../data/schema'
+
+// ✅ AFTER: API-generated type
+import type { User } from '@/api/generated/models'
+```
+
+4. **Update ALL related files that use the local type:**
+   - Table components
+   - Column definitions
+   - Row action components
+   - Provider/context files
+   - Dialog components
+
+### Step 8: Migrate Remaining Components to Use Orval Hooks
 
 **Why:** Orval hooks have different interfaces than manual hooks. Systematic migration ensures all components use the correct patterns. Additional features like toast notifications should be added inside components, not in wrapper hooks.
 
@@ -212,7 +316,7 @@ createMutation.mutate({ data: { name: 'New' } });
 
 4. Run `pnpm tsc --noEmit` after each file.
 
-### Step 8: Delete Manual Code Files
+### Step 9: Delete Manual Code Files
 
 **Why:** Keeping manual files causes confusion and potential import conflicts. Delete them after migration is complete.
 
@@ -222,7 +326,7 @@ rm -f src/hooks/use-workflows.ts  # Keep non-API hooks like use-mobile.ts
 rm -f src/types/workflow.ts
 ```
 
-### Step 9: Final Verification
+### Step 10: Final Verification
 
 **Why:** Verify that all manual API code has been replaced and the project compiles without errors.
 
