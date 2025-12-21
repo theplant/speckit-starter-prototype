@@ -14,23 +14,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Refactor all code and E2E tests to follow ThePlant's testing discipline principles.
 
-## CRITICAL: NO SKIPPING ALLOWED
+## Note
 
-**⚠️ AI MUST NEVER skip any task or nested workflow, regardless of:**
-- Whether the project appears to be "static" or "demo"
-- Whether API endpoints don't exist yet
-- Whether the task seems "not applicable"
-- Whether similar functionality already exists
-
-**For every task, AI MUST:**
-1. **Actually create the files** specified in the task
-2. **Actually run the commands** specified in the task
-3. **Actually implement the code** even if it requires creating new infrastructure
-4. If a task requires API endpoints that don't exist → **CREATE THEM**
-5. If a task requires localStorage that isn't used → **ADD IT**
-6. If a task requires MSW handlers → **CREATE THEM**
-
-**Marking a task complete without doing the work is FORBIDDEN.**
+Don't use --reporter option when running test, since we have a customized reporter in config for AI to easily understand failures
 
 ## How to Execute This Workflow
 
@@ -49,228 +35,17 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 
 ## Steps
 
-### Step 1: Configure `playwright.config.ts`
-
-**Why:** Low timeouts enable fast feedback when selectors are wrong. AI agents cannot see the browser, so fast failure is critical for rapid fix-test-fix cycles.
-
-- Low timeouts ensure fast failure when selectors are wrong
-- `E2E_TARGET_URL` (not `BASE_URL`) avoids confusion with API base URL
-- No `webServer` prevents Playwright from hanging
-
-```typescript
-export default defineConfig({
-  maxFailures: 3,
-  reporter: 'list',           // Must be 'list' for AI to see test results
-  timeout: 5000,              // 5s max per test - fail fast
-  expect: { timeout: 1000 },  // 1s for assertions
-  use: {
-    actionTimeout: 1000,      // 1s for actions
-    baseURL: process.env.E2E_TARGET_URL || 'http://localhost:5173',
-  },
-  webServer: undefined,       // NEVER let Playwright start the server
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-});
-```
-
-### Step 2: Create `tests/e2e/utils/test-helpers.ts`
-
-**Why:** AI agents cannot see the browser. These auto-fixtures provide essential debugging information: console errors, HTML dump on failure, and API logs. Without these, AI agents are blind when tests fail.
-
-Create test helpers with three essential auto-fixtures:
-
-```typescript
-import { test as base } from '@playwright/test';
-
-export const test = base.extend({
-  // Auto-fixture 1: Console Error Capture
-  // Collects all errors during test and outputs them only when test fails
-  consoleErrorCapture: [async ({ page }, use, testInfo) => {
-    const errors: { type: string; message: string; stack?: string }[] = [];
-    
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        const text = msg.text();
-        const location = msg.location();
-        errors.push({
-          type: 'console',
-          message: text,
-          stack: location ? `${location.url}:${location.lineNumber}:${location.columnNumber}` : undefined,
-        });
-      }
-    });
-    
-    page.on('pageerror', (error) => {
-      errors.push({
-        type: 'pageerror',
-        message: error.message,
-        stack: error.stack,
-      });
-    });
-    
-    await use();
-    
-    // Only output errors when test fails
-    if (testInfo.status !== 'passed' && errors.length > 0) {
-      process.stderr.write('\n=== CONSOLE ERRORS DURING TEST ===\n');
-      errors.forEach((err, i) => {
-        process.stderr.write(`\n[${i + 1}] ${err.type.toUpperCase()}: ${err.message}\n`);
-        if (err.stack) {
-          process.stderr.write(`    Stack: ${err.stack}\n`);
-        }
-      });
-      process.stderr.write('\n=== END CONSOLE ERRORS ===\n');
-      
-      // Attach to test report
-      await testInfo.attach('console-errors', {
-        body: JSON.stringify(errors, null, 2),
-        contentType: 'application/json',
-      });
-    }
-  }, { auto: true }],
-
-    // Auto-fixture: Print error-context.md on test failure (CRITICAL FOR AI)
-  // Playwright generates error-context.md with page snapshot - essential for debugging
-  errorContextOnFailure: [async ({}, use, testInfo) => {
-    await use();
-    
-    if (testInfo.status !== 'passed') {
-      // Find the error-context.md file in test results
-      const outputDir = testInfo.outputDir;
-      const errorContextPath = path.join(outputDir, 'error-context.md');
-      
-      if (fs.existsSync(errorContextPath)) {
-        const content = fs.readFileSync(errorContextPath, 'utf-8');
-        process.stdout.write('\n=== ERROR CONTEXT (Page Snapshot) ===\n');
-        process.stdout.write(content);
-        process.stdout.write('\n=== END ERROR CONTEXT ===\n');
-      }
-    }
-  }, { auto: true }],
-
-  // Auto-fixture 2: HTML Dump on Failure (CRITICAL FOR AI)
-  htmlDumpOnFailure: [async ({ page }, use, testInfo) => {
-    await use();
-    if (testInfo.status !== 'passed') {
-      try {
-        const html = await page.content();
-        process.stdout.write('\n=== PAGE HTML ON FAILURE ===\n');
-        process.stdout.write(html);
-        process.stdout.write('\n=== END PAGE HTML ===\n');
-        await testInfo.attach('page-html', { body: html, contentType: 'text/html' });
-      } catch (e) {
-        process.stdout.write(`\n[HTML DUMP ERROR] ${e}\n`);
-      }
-    }
-  }, { auto: true }],
-
-  // Auto-fixture 3: API Request Logging
-  apiLogs: [async ({ page }, use, testInfo) => {
-    const logs: string[] = [];
-    page.on('request', (request) => {
-      const url = request.url();
-      if (url.includes('/api/') && !url.includes('/src/')) {
-        logs.push(`[API REQUEST] ${request.method()} ${url}`);
-      }
-    });
-    page.on('response', async (response) => {
-      const url = response.url();
-      if (url.includes('/api/') && !url.includes('/src/')) {
-        try {
-          const body = await response.text();
-          logs.push(`[API RESPONSE] ${response.status()} ${url}\n  Body: ${body.substring(0, 500)}`);
-        } catch {
-          logs.push(`[API RESPONSE] ${response.status()} ${url}`);
-        }
-      }
-    });
-    await use(logs);
-    if (testInfo.status !== 'passed' && logs.length > 0) {
-      process.stdout.write('\n=== API LOGS ON FAILURE ===\n');
-      process.stdout.write(logs.join('\n'));
-      process.stdout.write('\n=== END API LOGS ===\n');
-    }
-  }, { auto: true }],
-});
-
-export { expect } from '@playwright/test';
-```
-
-### Step 4: Run System Exploration Workflow
-
-<!-- runner:workflow:theplant.system-exploration -->
-
-### Step 5: Create Page Objects in `tests/e2e/utils/page-objects/`
-
-**Why:** Page Objects encapsulate selectors and actions, making tests more maintainable. When UI changes, only the Page Object needs updating, not every test.
-
-- One Page Object per major page/route
-- Encapsulate all selectors as readonly Locator properties
-- Provide navigation methods (`goto()`, `gotoNew()`)
-- Provide action methods (`search()`, `filter()`, `save()`)
-
-With each READ path in @.system-exploration.md, create a Page Object with:
-
-```typescript
-// tests/e2e/utils/page-objects/my-entity.page.ts
-import type { Page, Locator } from '@playwright/test';
-
-export class MyEntityListPage {
-  readonly page: Page;
-  readonly heading: Locator;
-  readonly searchInput: Locator;
-  readonly newButton: Locator;
-  readonly entityCards: Locator;
-  
-  constructor(page: Page) {
-    this.page = page;
-    this.heading = page.getByRole('heading', { name: /my entities/i });
-    this.searchInput = page.getByPlaceholder(/search/i);
-    this.newButton = page.getByRole('button', { name: /new/i });
-    this.entityCards = page.locator('[data-testid="entity-card"]');
-  }
-  
-  async goto() {
-    await this.page.goto('/my-entities');
-    await this.page.waitForLoadState('networkidle');
-  }
-  
-  async search(query: string) {
-    await this.searchInput.fill(query);
-  }
-}
-```
-
-### Step 4: Run OpenAPI-First Workflow
-
-**⚠️ MANDATORY: Do NOT skip this workflow. If the project has no API, CREATE one.**
-
-<!-- runner:workflow:theplant.openapi-first -->
-
-### Step 5: Run MSW Mock Backend Workflow
-
-**⚠️ MANDATORY: Do NOT skip this workflow. If the project has no MSW, SET IT UP.**
-
-<!-- runner:workflow:theplant.msw-mock-backend -->
-
-### Step 6: Run Test Data Seeding Workflow
-
-**⚠️ MANDATORY: Do NOT skip this workflow. If the project has no localStorage persistence, ADD IT.**
-
-<!-- runner:workflow:theplant.test-data-seeding -->
-
-
-### Step 7: Write E2E Tests for All Read and Write Paths
+### Step 1: Write E2E Tests for All Read and Write Paths
 
 **Why:** E2E tests validate real user behavior through the full stack (browser → API → storage). Testing BOTH read paths (data display) AND write paths (forms, mutations) ensures the entire user journey works correctly.
 
-<!-- runner:loop:ROUTE -->
 ```bash
 find src/routes -name "*.tsx" | grep -v "_" | head -20
 ```
 
 **For route `$ROUTE`, write tests covering:**
 
-**1. READ Path Tests (Data Display) in @.system-exploration.md:**
+**1. Create READ Path Tests (Data Display) in @.system-exploration.md:**
 
 | Scenario | Test Data | Expected |
 |----------|-----------|----------|
@@ -291,7 +66,7 @@ test('should show empty state', async ({ page }) => {
 });
 ```
 
-**2. WRITE Path Tests (CRUD Operations) in @.system-exploration.md:**
+**2. CreateWRITE Path Tests (CRUD Operations) in @.system-exploration.md:**
 
 | Operation | Action | Expected |
 |-----------|--------|----------|
@@ -336,6 +111,32 @@ page.locator('.submit-btn')
 page.getByText('user')  // Matches "user" and "username"
 ```
 
+**Avoiding Strict Mode Violations:**
+
+When text appears in multiple elements (e.g., status "active" in username, email, and badge):
+
+```typescript
+// ❌ BAD: Matches username "active_user", email "active@example.com", badge "active"
+page.getByText('active')
+
+// ✅ GOOD: Exact match for status badge only
+page.getByText('active', { exact: true })
+
+// ✅ GOOD: Regex anchor for option elements
+page.getByRole('option', { name: /^active$/i })
+```
+
+**Verify Selector Text Before Writing Tests:**
+
+```typescript
+// ❌ BAD: Assumed text without reading component
+await expect(page.getByText(/sign up/i)).toBeVisible();
+
+// ✅ GOOD: Verified against actual component source
+// After reading component: CardTitle shows "Create an account"
+await expect(page.getByText('Create an account', { exact: true })).toBeVisible();
+```
+
 **Test Naming (apply to every test):**
 ```typescript
 // ✅ GOOD: References acceptance scenario or bug ID
@@ -351,7 +152,7 @@ test('should work', ...);
 - Use `seedAndNavigate()` to set up isolated test data
 - Each test cleans up or uses unique data
 
-### Step 8: Run E2E Tests
+### Step 2: Run E2E Tests
 
 **Why:** Running tests after each change ensures immediate feedback. Fast failure with low timeouts enables rapid iteration.
 
@@ -385,4 +186,71 @@ pnpm test:e2e --grep "Products"
 1. Read component code to understand what fields are searchable
 2. Check if groups/sections are collapsed by default
 3. Verify what text is actually rendered
+
+#### AI Reporter Infrastructure
+
+**Why:** When tests fail, AI agents need rich context to debug effectively. The standard Playwright output lacks the detail needed for AI-assisted debugging.
+
+**Required Files:**
+
+1. **`tests/e2e/utils/test-helpers.ts`** - Extended test fixture that captures:
+   - All console messages (log, warn, info, error) - not just errors
+   - HTML snapshot of the page on failure
+   - Form validation messages (`[data-slot="form-message"]`)
+   - Available `data-testid` attributes
+
+2. **`tests/e2e/utils/ai-reporter.ts`** - Custom reporter that outputs:
+   - Failed test location and error message
+   - All captured console messages (for debugging output)
+   - Relevant HTML context (form structure, available selectors)
+   - Actionable debugging tips
+
+**What Gets Captured on Test Failure:**
+
+| Data | Why | How |
+|------|-----|-----|
+| All console messages | Developers add `console.log` for debugging | Capture all `msg.type()` not just `error` |
+| Form validation messages | Shows actual vs expected validation text | Query `[data-slot="form-message"]` |
+| Form/Main HTML structure | Shows available selectors and structure | Capture `form` or `main` innerHTML |
+| Available test IDs | Quick selector alternatives | Query `[data-testid]` attributes |
+
+**Example Reporter Output:**
+
+```
+📁 File: tests/e2e/settings.spec.ts:93
+
+🔴 Error:
+   Error: expect(locator).toBeVisible() failed
+   Locator: getByText(/at least 2 characters/i)
+
+📝 Console Output (3 messages):
+   📋 [log] DEBUG: Form submitted
+   ⚠️ [warn] Validation triggered
+   ℹ️ [info] Form state: invalid
+
+🔍 HTML Context:
+   📋 Form Validation Messages: Please enter your username., Please select an email.
+   📄 Form Structure:
+      <div data-slot="form-item">...</div>
+```
+
+**Debugging with Console Logs:**
+
+When debugging failing tests, add `console.log` in your test - they will appear in the reporter output:
+
+```typescript
+test('debug example', async ({ page }) => {
+  await page.goto('/settings');
+  
+  // These will appear in reporter output on failure
+  await page.evaluate(() => {
+    console.log('DEBUG: Current form state');
+  });
+  
+  const formMessages = await page.locator('[data-slot="form-message"]').allTextContents();
+  console.log('Form messages:', formMessages);  // Also captured
+  
+  await expect(page.getByText(/expected text/i)).toBeVisible();
+});
+```
 
