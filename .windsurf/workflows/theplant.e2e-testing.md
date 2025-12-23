@@ -1,5 +1,5 @@
 ---
-description: Refactor all code to apply E2E testing discipline following ThePlant's testing principles - Playwright-only testing with console error capture, HTML dump on failure, and strict selector hierarchy.
+description: Refactor all code to apply E2E testing discipline following ThePlant's testing principles
 ---
 
 ## User Input
@@ -13,10 +13,6 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Goal
 
 Refactor all code and E2E tests to follow ThePlant's testing discipline principles.
-
-## Note
-
-Don't use --reporter option when running test, since we have a customized reporter in config for AI to easily understand failures
 
 ## How to Execute This Workflow
 
@@ -35,119 +31,209 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 
 ## Steps
 
-### Step 1: Write E2E Tests for All Read and Write Paths
+### Step 1: Critical Rules and ARIA Snapshot Setup
 
-**Why:** E2E tests validate real user behavior through the full stack (browser → API → storage). Testing BOTH read paths (data display) AND write paths (forms, mutations) ensures the entire user journey works correctly.
+**IMPORTANT: Read and follow ALL rules in this step before writing any tests.**
 
-```bash
-find src/routes -name "*.tsx" | grep -v "_" | head -20
+#### Critical Rules (NEVER Violate)
+
+1. **ONLY use `toMatchAriaSnapshot` for assertions** - NEVER use `toBeVisible()`, `toHaveText()`, `toBeChecked()`, or any other expect methods. ALL assertions MUST use `toMatchAriaSnapshot`.
+
+2. **ALWAYS use `body` locator** - Never use `getByRole('main')` as some pages don't have a main role element (auth pages, error pages, etc.)
+
+3. **ALWAYS use `--update-source-method=overwrite`** - Without this flag, Playwright creates patch files instead of updating source directly. Command: `pnpm test:e2e --update-snapshots --update-source-method=overwrite`
+
+4. **ALWAYS review generated snapshots** - After generation, simplify to partial matches by removing dev tools, notifications, and non-essential elements
+
+5. **NEVER modify `playwright.config.ts`** - This configuration file controls test infrastructure and should remain stable. Do not change timeouts, reporters, or any other settings to fix test failures.
+
+6. **NEVER use `--reporter` CLI flag** - The project has a custom AI reporter configured in `playwright.config.ts`.
+
+7. **Fix tests by fixing selectors or app code** - If tests timeout or fail, the solution is ALWAYS to fix incorrect selectors or fix missing app behavior. NEVER adjust timeouts or config.
+
+**Reference:** https://playwright.dev/docs/aria-snapshots
+
+#### Workflow for Writing Tests with ARIA Snapshots
+
+**1. Write failing test with empty snapshot using `body` locator:**
+
+```typescript
+test('US1-AS1: User can view items page', async ({ page }) => {
+  await page.goto('/items');
+  // ALWAYS use body locator - some pages don't have main role
+  await expect(page.locator('body')).toMatchAriaSnapshot(``);
+});
 ```
 
-**For route `$ROUTE`, write tests covering:**
+**2. Run test to generate snapshot (MUST use --update-source-method=overwrite):**
 
-**1. Create READ Path Tests (Data Display) in @.system-exploration.md:**
+```bash
+pnpm test:e2e --update-snapshots --update-source-method=overwrite
+```
+
+**3. Review generated snapshot** - The snapshot will include everything on the page. You MUST:
+   - Remove dev tools buttons (TanStack Query, Router devtools)
+   - Remove notification regions
+   - Keep only the essential page structure elements
+   - Simplify to partial match (only key elements)
+
+**4. Simplify to partial match with essential elements only:**
+
+```typescript
+test('US1-AS1: User can view items page', async ({ page }) => {
+  await page.goto('/items');
+  // Simplified partial match - only essential elements
+  await expect(page.locator('body')).toMatchAriaSnapshot(`
+    - heading "Items" [level=1]
+    - button "Add Item"
+    - table
+  `);
+});
+```
+
+#### ARIA Snapshot Syntax
+
+| Element | Syntax | Example |
+|---------|--------|---------|
+| Exact text | `"text"` | `- heading "Items"` |
+| Regex pattern | `/pattern/` | `- heading /Items \d+/` |
+| Level attribute | `[level=N]` | `- heading "Title" [level=1]` |
+| State attributes | `[checked]`, `[disabled]` | `- checkbox [checked]` |
+| Partial match | Omit children | `- table` (matches any table) |
+| Nested elements | Indentation | See examples below |
+
+#### READ Path Tests (Data Display)
 
 | Scenario | Test Data | Expected |
 |----------|-----------|----------|
-| Empty state | `[]` | Empty message visible |
-| Single item | `[{...}]` | Item details visible |
-| Multiple items | `[{...}, {...}]` | All items visible |
+| Empty state | `[]` | Empty message in snapshot |
+| Single item | `[{...}]` | Item details in snapshot |
+| Multiple items | `[{...}, {...}]` | All items in snapshot |
 
 ```typescript
-test('should display items with seeded data', async ({ page }) => {
-  await seedAndNavigate(page, '/items', { items: testItems });
-  // Assert on ACTUAL seeded data, not generic elements
-  await expect(page.getByText(testItems[0].name)).toBeVisible();
+test('US1-AS1: User can view empty list', async ({ page }) => {
+  await seedAndNavigate(page, '/items', { items: [] });
+  await expect(page.locator('body')).toMatchAriaSnapshot(`
+    - heading "Items" [level=1]
+    - text: /no items/i
+  `);
 });
 
-test('should show empty state', async ({ page }) => {
-  await seedAndNavigate(page, '/items', { items: [] });
-  await expect(page.getByText(/no items/i)).toBeVisible();
+test('US1-AS2: User can view items list', async ({ page }) => {
+  const testItems = [createTestItem('1', 'First Item')];
+  await seedAndNavigate(page, '/items', { items: testItems });
+  await expect(page.locator('body')).toMatchAriaSnapshot(`
+    - heading "Items" [level=1]
+    - table:
+      - rowgroup:
+        - row:
+          - cell "First Item"
+  `);
 });
 ```
 
-**2. CreateWRITE Path Tests (CRUD Operations) in @.system-exploration.md:**
+#### WRITE Path Tests (CRUD Operations)
 
 | Operation | Action | Expected |
 |-----------|--------|----------|
-| Create | Fill form, submit | New item in list |
-| Update | Edit, save | Changes reflected |
-| Delete | Confirm delete | Item removed |
-| Validation | Submit invalid | Error messages |
+| Create | Fill form, submit | New item in snapshot |
+| Update | Edit, save | Changes in snapshot |
+| Delete | Confirm delete | Item removed from snapshot |
+| Validation | Submit invalid | Error messages in snapshot |
 
 ```typescript
-test('should create new item', async ({ page }) => {
+test('US1-W1: User can create item', async ({ page }) => {
   await page.goto('/items');
   await page.getByRole('button', { name: /add/i }).click();
-  await page.getByLabel(/name/i).fill('New Item');
-  await page.getByRole('button', { name: /save/i }).click();
-  await expect(page.getByText('New Item')).toBeVisible();
+  
+  // Verify form structure with ARIA snapshot (dialog is an exception - use specific locator)
+  await expect(page.getByRole('dialog')).toMatchAriaSnapshot(`
+    - dialog:
+      - heading "Add Item"
+      - textbox "Name"
+      - button "Save"
+  `);
+  
+  await page.getByRole('textbox', { name: 'Name' }).fill('New Item');
+  await page.getByRole('button', { name: 'Save' }).click();
+  
+  // Verify item appears in list
+  await expect(page.locator('body')).toMatchAriaSnapshot(`
+    - table:
+      - rowgroup:
+        - row:
+          - cell "New Item"
+  `);
 });
 
-test('should delete item', async ({ page }) => {
+test('US1-W2: User can delete item', async ({ page }) => {
   await seedAndNavigate(page, '/items', { items: [testItem] });
   await page.getByRole('button', { name: /delete/i }).click();
   await page.getByRole('button', { name: /confirm/i }).click();
-  await expect(page.getByText(testItem.name)).not.toBeVisible();
+  
+  // Verify item removed - use partial match
+  await expect(page.locator('body')).toMatchAriaSnapshot(`
+    - heading "Items" [level=1]
+    - text: /no items/i
+  `);
 });
 ```
 
-**Selector Rules (apply in every test):**
+#### Discovering Page Structure
 
-1. **Priority order:** `data-testid` > `role` > `text` > CSS
-2. **Exact match for text:** `{ exact: true }` prevents partial matches
-3. **Anchor regex for options:** `/^connected$/i` prevents "Not Connected" matching
-4. **Never guess selectors:** Read HTML dump or component code first
+Use `locator.ariaSnapshot()` to programmatically discover the accessibility tree:
 
 ```typescript
-// ✅ GOOD
-page.getByTestId('submit-button')
-page.getByRole('button', { name: /submit/i })
-page.getByText('username', { exact: true })
-page.getByRole('option', { name: /^active$/i })
-
-// ❌ BAD
-page.locator('.submit-btn')
-page.getByText('user')  // Matches "user" and "username"
+test('discover page structure', async ({ page }) => {
+  await page.goto('/items');
+  // ALWAYS use body locator for discovery
+  const snapshot = await page.locator('body').ariaSnapshot();
+  console.log(snapshot);
+  // Copy relevant parts to your test assertion
+});
 ```
 
-**Avoiding Strict Mode Violations:**
+#### Partial Matching (Recommended)
 
-When text appears in multiple elements (e.g., status "active" in username, email, and badge):
+ARIA snapshots support partial matching - only specified elements need to match:
 
 ```typescript
-// ❌ BAD: Matches username "active_user", email "active@example.com", badge "active"
-page.getByText('active')
+// ✅ GOOD: Partial match - flexible, only checks key elements
+await expect(page.locator('body')).toMatchAriaSnapshot(`
+  - heading "Items" [level=1]
+  - button "Add Item"
+`);
 
-// ✅ GOOD: Exact match for status badge only
-page.getByText('active', { exact: true })
-
-// ✅ GOOD: Regex anchor for option elements
-page.getByRole('option', { name: /^active$/i })
+// ❌ AVOID: Full match - brittle, breaks on any UI change
+await expect(page.locator('body')).toMatchAriaSnapshot(`
+  - heading "Items" [level=1]
+  - text: "Manage your items here"
+  - button "Add Item"
+  - button "Export"
+  - table:
+    - rowgroup:
+      - row:
+        - columnheader "Name"
+        - columnheader "Status"
+        - columnheader "Actions"
+`);
 ```
 
-**Verify Selector Text Before Writing Tests:**
+#### Test Naming Convention
 
-```typescript
-// ❌ BAD: Assumed text without reading component
-await expect(page.getByText(/sign up/i)).toBeVisible();
-
-// ✅ GOOD: Verified against actual component source
-// After reading component: CardTitle shows "Create an account"
-await expect(page.getByText('Create an account', { exact: true })).toBeVisible();
-```
-
-**Test Naming (apply to every test):**
 ```typescript
 // ✅ GOOD: References acceptance scenario or bug ID
-test('US1-AS1: New user can view empty list', ...);
+test('US1-AS1: User can view empty list', ...);
+test('US1-W1: User can create item', ...);
 test('BUG-123: Count updates after delete', ...);
 
 // ❌ BAD: Generic name
 test('should work', ...);
+test('empty state', ...);
 ```
 
-**Test Independence (apply to every test):**
+#### Test Independence
+
 - Tests MUST NOT depend on execution order
 - Use `seedAndNavigate()` to set up isolated test data
 - Each test cleans up or uses unique data
@@ -181,6 +267,10 @@ pnpm test:e2e --grep "Products"
 - If test expects behavior that doesn't exist → **ADD THE BEHAVIOR**
 - If test expects wrong behavior → **REMOVE THE TEST ENTIRELY** (not weaken it)
 - Never remove assertions to make tests pass
+
+**Handling Timeouts (Strict Rule):**
+- **Do Not Adjust Timeouts**: Never increase timeout values to bypass test failures. Timeouts often indicate elements are not found or the UI isn't ready, and extending timeouts masks the root cause.
+- **Correct Approach**: Revisit the component code to ensure selector accuracy. If the UI is slow, investigate app performance issues or use explicit waits for specific conditions (e.g., `await page.waitForLoadState('networkidle')`).
 
 **Before writing tests, verify UI behavior:**
 1. Read component code to understand what fields are searchable
@@ -253,4 +343,3 @@ test('debug example', async ({ page }) => {
   await expect(page.getByText(/expected text/i)).toBeVisible();
 });
 ```
-

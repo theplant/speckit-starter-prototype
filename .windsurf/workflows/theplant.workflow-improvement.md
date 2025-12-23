@@ -32,7 +32,25 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 
 ## Steps
 
-### Step 1: Identify Issues from Conversation
+### Step 1: Rules and Issue Identification
+
+**IMPORTANT: Read and follow ALL rules in this step before proceeding.**
+
+#### Critical Rules for Workflow Updates
+
+1. **ALL rules MUST be in Step 1** - When creating or updating workflows, put all critical rules at the beginning of Step 1. Text before the Steps section is NOT read when workflows are nested-executed.
+
+2. **Use generic names** - Use `MyEntity`, `myField` NOT project-specific names like `User`, `Task`.
+
+3. **Use conventional paths** - Use `src/mocks/handlers.ts` NOT absolute paths like `/Users/john/projects/...`.
+
+4. **Focus on principles** - Document the underlying principle, not the specific instance.
+
+5. **Include problem AND solution** - Always show both the problem pattern and the solution.
+
+6. **Avoid duplication** - Check existing workflows before adding new content.
+
+#### Issue Identification
 
 **Why:** Systematic issue identification ensures no learnings are lost. Each issue becomes a potential workflow improvement.
 
@@ -51,8 +69,6 @@ Analyze the current conversation and document:
 ### Issue 2: ...
 ```
 
-### Step 2: Categorize Issues
-
 **Why:** Categorization ensures learnings go to the right workflow file, avoiding duplication and keeping workflows focused.
 
 | Issue Type | Target Workflow |
@@ -64,7 +80,7 @@ Analyze the current conversation and document:
 | Data flow tracing | `theplant.system-exploration.md` |
 | Test data patterns | `theplant.test-data-seeding.md` |
 
-### Step 3: Read Target Workflow Files
+### Step 2: Read Target Workflow Files
 
 **Why:** Reading existing content prevents duplication and helps identify the right section for new learnings.
 
@@ -78,56 +94,7 @@ Check:
 2. Appropriate section to add learning
 3. Whether similar guidance already exists (avoid duplication)
 
-### Step 4: Generalize the Learning
-
-**Why:** Workflows are shared across projects. Project-specific content makes workflows less useful for other teams.
-
-**Generalization Rules:**
-- Use generic names (`MyEntity`, `myField`) NOT project names
-- Use conventional paths (`src/mocks/handlers.ts`) NOT absolute paths
-- Focus on underlying principle, not specific instance
-- Include both problem pattern AND solution
-
-**Path Generalization:**
-```bash
-# ✅ GOOD: Standard paths
-src/mocks/handlers.ts
-tests/e2e/utils/test-helpers.ts
-playwright.config.ts
-
-# ❌ BAD: Absolute paths
-/Users/john/projects/my-app/src/...
-
-# ✅ GOOD: Discovery commands for variable paths
-grep -rn "API_URL" src/ --include="*.ts"
-```
-
-### Step 5: Propose Updates
-
-**Why:** Proposing before applying allows review and prevents accidental overwrites.
-
-For each update, document:
-- Target file
-- Section to update
-- Proposed addition (generalized)
-
-**Example:**
-```markdown
-**Target**: `theplant.openapi-first.md`
-**Section**: Step 9: Migrate Components
-
-**Add**:
-When migrating enums:
-- Manual: `EntityStatus.ACTIVE`
-- Orval: `EntityStatus.ENTITY_STATUS_ACTIVE`
-
-Find all usages:
-```bash
-grep -rn "EntityStatus\." src/ --include="*.ts"
-```
-```
-
-### Step 6: Apply Updates to Workflow Files
+### Step 3: Apply Updates to Workflow Files
 
 **Why:** Applying updates immediately captures learnings while context is fresh.
 
@@ -175,17 +142,4 @@ You **MUST** consider the user input before proceeding (if not empty).
 - Has enough depth for its own file
 - Follows naming: `theplant.[discipline-name].md`
 
-### Step 8: Verify No Duplication
 
-**Why:** Duplicate content makes workflows harder to maintain and can lead to inconsistencies.
-
-```bash
-# Check for similar content in existing workflows
-grep -rn "[key phrase from learning]" .windsurf/workflows/
-```
-
-**Rules:**
-- NEVER add project-specific content
-- NEVER duplicate existing guidance
-- ALWAYS generalize before adding
-- ALWAYS propose updates before applying
