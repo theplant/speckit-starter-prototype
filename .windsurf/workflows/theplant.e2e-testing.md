@@ -274,15 +274,16 @@ test('empty state', ...);
 | Filter options with counts     | `getByRole('option', { name: /active/i })` matches "Active 1" and "Inactive 1" | Use `getByRole('option', { name: /active/i }).first()` or more specific regex |
 | "Connected" vs "Not Connected" | `getByRole('option', { name: /connected/i })` matches both                     | Use `getByRole('option', { name: /^connected$/i })` with anchors              |
 | Multiple headings              | `getByRole('heading', { name: /tasks/i })` matches sidebar and page heading    | Use more specific container or `first()`                                      |
+| Multiple buttons               | `getByRole('button', { name: /submit/i })` matches multiple submit buttons     | Use more specific container or `first()`                                      |
 
 ```typescript
-// ❌ BAD: Matches multiple elements
+// BAD: Matches multiple elements
 await page.getByText("activeuser").toBeVisible(); // Matches username AND email
 
-// ✅ GOOD: Exact match prevents partial matches
+// GOOD: Exact match prevents partial matches
 await page.getByText("activeuser", { exact: true }).toBeVisible();
 
-// ❌ BAD: Regex matches "Active 1" and "Inactive 1"
+// BAD: Regex matches "Active 1" and "Inactive 1"
 await page.getByRole("option", { name: /active/i }).click();
 
 // ✅ GOOD: Use first() when options show counts
@@ -298,6 +299,50 @@ await page.getByRole("option", { name: /connected/i }).click();
 await page.getByRole("option", { name: /^connected$/i }).click();
 ```
 
+#### Selector Strategy Hierarchy (NON-NEGOTIABLE)
+
+When interacting with the UI (click, fill, select), choose selectors in this priority order:
+
+1. **`data-testid`** - Most stable, explicitly added for testing
+2. **`role`** - Semantic, accessible, follows ARIA patterns
+3. **`text`** - Human-readable but fragile
+4. **CSS** - Last resort, most fragile
+
+```typescript
+// ✅ Priority 1: data-testid (best)
+await page.getByTestId("submit-button").click();
+
+// ✅ Priority 2: role (good)
+await page.getByRole("button", { name: /submit/i }).click();
+
+// ⚠️ Priority 3: text (acceptable)
+await page.getByText("Submit").click();
+
+// ❌ Priority 4: CSS (avoid)
+await page.locator(".submit-btn").click();
+```
+
+#### Test Description Alignment (NON-NEGOTIABLE)
+
+Test expectations MUST directly verify what the test description claims.
+
+```typescript
+// ❌ BAD: Proxy assertion (does not verify the described behavior)
+test("should display products", async ({ page }) => {
+  await page.goto("/products");
+  await expect(page.locator("main")).toMatchAriaSnapshot(``);
+});
+
+// ✅ GOOD: Verify feature behavior with ARIA snapshot
+test("should display products", async ({ page }) => {
+  await page.goto("/products");
+  await expect(page.locator("main")).toMatchAriaSnapshot(`
+    - heading /products/i
+    - table
+  `);
+});
+```
+
 #### Test Assertion Anti-Patterns (NON-NEGOTIABLE)
 
 NEVER use these patterns:
@@ -309,70 +354,15 @@ NEVER use these patterns:
 | Guessing selectors                     | Causes strict mode violations | Read code or HTML dump first   |
 | Using `.first()` without understanding | Masks selector issues         | Make selector more specific    |
 
-#### Spec-Critical Invariants MUST Have Explicit Assertions (NON-NEGOTIABLE)
-
-Some behaviors are **spec-critical invariants** and MUST NOT be tested via proxy assertions like "redirected away from page" or "sidebar is visible".
-
-- For these invariants, tests MUST include at least one explicit assertion on the authoritative state, such as:
-  - The authenticated session payload (e.g., permissions list, roles list)
-  - The underlying persisted storage state (when applicable in this prototype)
-  - A server-enforced denial/allow check that cannot be satisfied unless the invariant holds
-
-Examples:
-
-- Initial setup: after creating the first admin and signing in, MUST assert session includes `iam_admin` role AND includes all IAM permission codes.
-
-#### Test Independence
-
-- Tests MUST NOT depend on execution order
-- Use `seedAndNavigate()` to set up isolated test data
-- Each test cleans up or uses unique data
-
-### Step 2: Run E2E Tests
-
-**Why:** Running tests after each change ensures immediate feedback. Fast failure with low timeouts enables rapid iteration.
-
-```bash
-# Start dev server (MSW enabled when API URL env var is NOT set)
-pnpm dev
-
-# Run tests in another terminal
-pnpm test:e2e
-
-# Run specific tests
-pnpm test:e2e --grep "Products"
-```
-
-**Diagnosis Table:**
-
-| Error                   | Cause                   | Solution                                               |
-| ----------------------- | ----------------------- | ------------------------------------------------------ |
-| "strict mode violation" | Multiple elements match | Use `{ exact: true }`, regex anchors, or `data-testid` |
-| "element not found"     | Wrong selector          | Check HTML dump, update selector                       |
-| "timeout"               | Loading/error state     | Add wait or fix app crash                              |
-| Console error           | App error               | Fix app first, don't modify test                       |
-| 500 Error Page          | Missing imports         | Run `pnpm tsc --noEmit` to find import errors          |
-
-**NEVER weaken tests:**
-
-- If test expects behavior that doesn't exist → **ADD THE BEHAVIOR**
-- If test expects wrong behavior → **REMOVE THE TEST ENTIRELY** (not weaken it)
-- Never remove assertions to make tests pass
-
-**Handling Timeouts (Strict Rule):**
-
-- **Do Not Adjust Timeouts**: Never increase timeout values to bypass test failures. Timeouts often indicate elements are not found or the UI isn't ready, and extending timeouts masks the root cause.
-- **Correct Approach**: Revisit the component code to ensure selector accuracy. If the UI is slow, investigate app performance issues or use explicit waits for specific conditions (e.g., `await page.waitForLoadState('networkidle')`).
-
-**Before writing tests, verify UI behavior:**
-
-1. Read component code to understand what fields are searchable
-2. Check if groups/sections are collapsed by default
-3. Verify what text is actually rendered
-
 #### AI Reporter Infrastructure
 
 **Why:** When tests fail, AI agents need rich context to debug effectively. The standard Playwright output lacks the detail needed for AI-assisted debugging.
+
+**Non-negotiable diagnostics expectations:**
+
+- Console errors MUST be treated as test failures.
+- Tests MUST output enough context to debug without guessing selectors.
+- HTML (or relevant container HTML like `main`/`form`) MUST be available on failure.
 
 **Required Files:**
 
@@ -401,21 +391,23 @@ pnpm test:e2e --grep "Products"
 **Example Reporter Output:**
 
 ```
+
 📁 File: tests/e2e/settings.spec.ts:93
 
 🔴 Error:
-   Error: expect(locator).toBeVisible() failed
-   Locator: getByText(/at least 2 characters/i)
+Error: expect(locator).toBeVisible() failed
+Locator: getByText(/at least 2 characters/i)
 
 📝 Console Output (3 messages):
-   📋 [log] DEBUG: Form submitted
-   ⚠️ [warn] Validation triggered
-   ℹ️ [info] Form state: invalid
+📋 [log] DEBUG: Form submitted
+⚠️ [warn] Validation triggered
+ℹ️ [info] Form state: invalid
 
 🔍 HTML Context:
-   📋 Form Validation Messages: Please enter your username., Please select an email.
-   📄 Form Structure:
-      <div data-slot="form-item">...</div>
+📋 Form Validation Messages: Please enter your username., Please select an email.
+📄 Form Structure:
+<div data-slot="form-item">...</div>
+
 ```
 
 **Debugging with Console Logs:**
