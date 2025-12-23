@@ -39,7 +39,13 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 
 1. **ONLY use `toMatchAriaSnapshot` for assertions** - NEVER use `toBeVisible()`, `toHaveText()`, `toBeChecked()`, or any other expect methods. ALL assertions MUST use `toMatchAriaSnapshot`.
 
-2. **ALWAYS use `body` locator** - Never use `getByRole('main')` as some pages don't have a main role element (auth pages, error pages, etc.)
+2. **Use the most appropriate content locator** - Choose locators in this priority order:
+   - **`main`** - Preferred for pages with a `<main>` element (most app pages)
+   - **`[role="dialog"]` or `[role="alertdialog"]`** - For modal/dialog assertions
+   - **`#content` or `[data-content]`** - For pages with custom content containers
+   - **`body`** - Fallback for pages without main element (auth pages, error pages, landing pages)
+   
+   **Why:** Using `main` or specific content areas produces cleaner snapshots without sidebar, header, and footer noise. Only use `body` when the page doesn't have a main content area.
 
 3. **ALWAYS use `--update-source-method=overwrite`** - Without this flag, Playwright creates patch files instead of updating source directly. Command: `pnpm test:e2e --update-snapshots --update-source-method=overwrite`
 
@@ -55,13 +61,14 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 
 #### Workflow for Writing Tests with ARIA Snapshots
 
-**1. Write failing test with empty snapshot using `body` locator:**
+**1. Write failing test with empty snapshot using appropriate locator:**
 
 ```typescript
 test('US1-AS1: User can view items page', async ({ page }) => {
   await page.goto('/items');
-  // ALWAYS use body locator - some pages don't have main role
-  await expect(page.locator('body')).toMatchAriaSnapshot(``);
+  // Prefer main locator for app pages (cleaner snapshots without sidebar/header)
+  // Use body only if main doesn't exist (auth pages, error pages)
+  await expect(page.locator('main')).toMatchAriaSnapshot(``);
 });
 ```
 
@@ -83,7 +90,8 @@ pnpm test:e2e --update-snapshots --update-source-method=overwrite
 test('US1-AS1: User can view items page', async ({ page }) => {
   await page.goto('/items');
   // Simplified partial match - only essential elements
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  // Use main for app pages, body for auth/error pages
+  await expect(page.locator('main')).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - button "Add Item"
     - table
@@ -113,7 +121,8 @@ test('US1-AS1: User can view items page', async ({ page }) => {
 ```typescript
 test('US1-AS1: User can view empty list', async ({ page }) => {
   await seedAndNavigate(page, '/items', { items: [] });
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  // Use main for app pages - cleaner snapshots
+  await expect(page.locator('main')).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - text: /no items/i
   `);
@@ -122,7 +131,8 @@ test('US1-AS1: User can view empty list', async ({ page }) => {
 test('US1-AS2: User can view items list', async ({ page }) => {
   const testItems = [createTestItem('1', 'First Item')];
   await seedAndNavigate(page, '/items', { items: testItems });
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  // Use main for app pages - cleaner snapshots
+  await expect(page.locator('main')).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - table:
       - rowgroup:
@@ -146,7 +156,7 @@ test('US1-W1: User can create item', async ({ page }) => {
   await page.goto('/items');
   await page.getByRole('button', { name: /add/i }).click();
   
-  // Verify form structure with ARIA snapshot (dialog is an exception - use specific locator)
+  // Use dialog locator for modal assertions
   await expect(page.getByRole('dialog')).toMatchAriaSnapshot(`
     - dialog:
       - heading "Add Item"
@@ -157,8 +167,8 @@ test('US1-W1: User can create item', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Name' }).fill('New Item');
   await page.getByRole('button', { name: 'Save' }).click();
   
-  // Verify item appears in list
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  // Use main for app pages - cleaner snapshots
+  await expect(page.locator('main')).toMatchAriaSnapshot(`
     - table:
       - rowgroup:
         - row:
@@ -171,8 +181,8 @@ test('US1-W2: User can delete item', async ({ page }) => {
   await page.getByRole('button', { name: /delete/i }).click();
   await page.getByRole('button', { name: /confirm/i }).click();
   
-  // Verify item removed - use partial match
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  // Use main for app pages - cleaner snapshots
+  await expect(page.locator('main')).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - text: /no items/i
   `);
@@ -186,26 +196,45 @@ Use `locator.ariaSnapshot()` to programmatically discover the accessibility tree
 ```typescript
 test('discover page structure', async ({ page }) => {
   await page.goto('/items');
-  // ALWAYS use body locator for discovery
-  const snapshot = await page.locator('body').ariaSnapshot();
-  console.log(snapshot);
+  
+  // Try main first (preferred for app pages)
+  const mainExists = await page.locator('main').count() > 0;
+  if (mainExists) {
+    const snapshot = await page.locator('main').ariaSnapshot();
+    console.log('Main content snapshot:', snapshot);
+  } else {
+    // Fallback to body for auth/error pages
+    const snapshot = await page.locator('body').ariaSnapshot();
+    console.log('Body snapshot:', snapshot);
+  }
   // Copy relevant parts to your test assertion
 });
 ```
+
+**Locator Selection Guide:**
+
+| Page Type | Locator | Example |
+|-----------|---------|---------|
+| App pages (dashboard, lists, settings) | `main` | `page.locator('main')` |
+| Dialogs/Modals | `[role="dialog"]` | `page.getByRole('dialog')` |
+| Confirmation dialogs | `[role="alertdialog"]` | `page.getByRole('alertdialog')` |
+| Auth pages (sign-in, sign-up) | `body` | `page.locator('body')` |
+| Error pages (404, 500) | `body` | `page.locator('body')` |
+| Landing/marketing pages | `body` | `page.locator('body')` |
 
 #### Partial Matching (Recommended)
 
 ARIA snapshots support partial matching - only specified elements need to match:
 
 ```typescript
-// ✅ GOOD: Partial match - flexible, only checks key elements
-await expect(page.locator('body')).toMatchAriaSnapshot(`
+// ✅ GOOD: Use main locator + partial match - flexible, clean snapshots
+await expect(page.locator('main')).toMatchAriaSnapshot(`
   - heading "Items" [level=1]
   - button "Add Item"
 `);
 
 // ❌ AVOID: Full match - brittle, breaks on any UI change
-await expect(page.locator('body')).toMatchAriaSnapshot(`
+await expect(page.locator('main')).toMatchAriaSnapshot(`
   - heading "Items" [level=1]
   - text: "Manage your items here"
   - button "Add Item"
