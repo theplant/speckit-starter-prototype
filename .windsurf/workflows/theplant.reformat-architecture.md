@@ -59,21 +59,22 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 - Custom AI reporter provides clean, structured error output
 
 Download and use: 
-https://gist.githubusercontent.com/sunfmin/6f8f8cb9c9219cb1ae625c43fcb282ab/raw/385ef271f59e1455aa1b5b28537d5b3433192de8/playwright.config.ts
+https://gist.githubusercontent.com/sunfmin/6f8f8cb9c9219cb1ae625c43fcb282ab/raw/playwright.config.ts
+
 
 ### Step 1.5: Create Custom AI Reporter `tests/e2e/utils/ai-reporter.ts`
 
 **Why:** AI agents cannot see the browser. A custom reporter provides clean, structured error output without overwhelming verbose dumps. This is more effective than multiple auto-fixtures that output independently.
 
 Download and use: 
-https://gist.githubusercontent.com/sunfmin/6f8f8cb9c9219cb1ae625c43fcb282ab/raw/385ef271f59e1455aa1b5b28537d5b3433192de8/ai-reporter.ts
+https://gist.githubusercontent.com/sunfmin/6f8f8cb9c9219cb1ae625c43fcb282ab/raw/ai-reporter.ts
 
 ### Step 2: Create `tests/e2e/utils/test-helpers.ts`
 
 **Why:** Console errors are captured and attached to test results. The custom AI reporter (Step 1.5) handles all error formatting and output. This keeps fixtures minimal and avoids verbose dumps.
 
 Download and use: 
-https://gist.githubusercontent.com/sunfmin/6f8f8cb9c9219cb1ae625c43fcb282ab/raw/385ef271f59e1455aa1b5b28537d5b3433192de8/test-helpers.ts
+https://gist.githubusercontent.com/sunfmin/6f8f8cb9c9219cb1ae625c43fcb282ab/raw/test-helpers.ts
 
 ### Step 4: Run System Exploration Workflow
 
