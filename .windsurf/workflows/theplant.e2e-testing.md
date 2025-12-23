@@ -19,6 +19,7 @@ Refactor all code and E2E tests to follow ThePlant's testing discipline principl
 **⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**
 
 **DO NOT read the Steps section below and execute them manually.** The runner handles:
+
 - Step sequencing and state tracking
 - Nested workflow execution
 - AI task delegation with proper context
@@ -58,10 +59,10 @@ Run this command, then follow the runner's instructions. The runner will tell yo
 **1. Write failing test with empty snapshot using `body` locator:**
 
 ```typescript
-test('US1-AS1: User can view items page', async ({ page }) => {
-  await page.goto('/items');
+test("US1-AS1: User can view items page", async ({ page }) => {
+  await page.goto("/items");
   // ALWAYS use body locator - some pages don't have main role
-  await expect(page.locator('body')).toMatchAriaSnapshot(``);
+  await expect(page.locator("body")).toMatchAriaSnapshot(``);
 });
 ```
 
@@ -72,18 +73,19 @@ pnpm test:e2e --update-snapshots --update-source-method=overwrite
 ```
 
 **3. Review generated snapshot** - The snapshot will include everything on the page. You MUST:
-   - Remove dev tools buttons (TanStack Query, Router devtools)
-   - Remove notification regions
-   - Keep only the essential page structure elements
-   - Simplify to partial match (only key elements)
+
+- Remove dev tools buttons (TanStack Query, Router devtools)
+- Remove notification regions
+- Keep only the essential page structure elements
+- Simplify to partial match (only key elements)
 
 **4. Simplify to partial match with essential elements only:**
 
 ```typescript
-test('US1-AS1: User can view items page', async ({ page }) => {
-  await page.goto('/items');
+test("US1-AS1: User can view items page", async ({ page }) => {
+  await page.goto("/items");
   // Simplified partial match - only essential elements
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  await expect(page.locator("body")).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - button "Add Item"
     - table
@@ -93,36 +95,36 @@ test('US1-AS1: User can view items page', async ({ page }) => {
 
 #### ARIA Snapshot Syntax
 
-| Element | Syntax | Example |
-|---------|--------|---------|
-| Exact text | `"text"` | `- heading "Items"` |
-| Regex pattern | `/pattern/` | `- heading /Items \d+/` |
-| Level attribute | `[level=N]` | `- heading "Title" [level=1]` |
-| State attributes | `[checked]`, `[disabled]` | `- checkbox [checked]` |
-| Partial match | Omit children | `- table` (matches any table) |
-| Nested elements | Indentation | See examples below |
+| Element          | Syntax                    | Example                       |
+| ---------------- | ------------------------- | ----------------------------- |
+| Exact text       | `"text"`                  | `- heading "Items"`           |
+| Regex pattern    | `/pattern/`               | `- heading /Items \d+/`       |
+| Level attribute  | `[level=N]`               | `- heading "Title" [level=1]` |
+| State attributes | `[checked]`, `[disabled]` | `- checkbox [checked]`        |
+| Partial match    | Omit children             | `- table` (matches any table) |
+| Nested elements  | Indentation               | See examples below            |
 
 #### READ Path Tests (Data Display)
 
-| Scenario | Test Data | Expected |
-|----------|-----------|----------|
-| Empty state | `[]` | Empty message in snapshot |
-| Single item | `[{...}]` | Item details in snapshot |
-| Multiple items | `[{...}, {...}]` | All items in snapshot |
+| Scenario       | Test Data        | Expected                  |
+| -------------- | ---------------- | ------------------------- |
+| Empty state    | `[]`             | Empty message in snapshot |
+| Single item    | `[{...}]`        | Item details in snapshot  |
+| Multiple items | `[{...}, {...}]` | All items in snapshot     |
 
 ```typescript
-test('US1-AS1: User can view empty list', async ({ page }) => {
-  await seedAndNavigate(page, '/items', { items: [] });
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+test("US1-AS1: User can view empty list", async ({ page }) => {
+  await seedAndNavigate(page, "/items", { items: [] });
+  await expect(page.locator("body")).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - text: /no items/i
   `);
 });
 
-test('US1-AS2: User can view items list', async ({ page }) => {
-  const testItems = [createTestItem('1', 'First Item')];
-  await seedAndNavigate(page, '/items', { items: testItems });
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+test("US1-AS2: User can view items list", async ({ page }) => {
+  const testItems = [createTestItem("1", "First Item")];
+  await seedAndNavigate(page, "/items", { items: testItems });
+  await expect(page.locator("body")).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - table:
       - rowgroup:
@@ -134,31 +136,31 @@ test('US1-AS2: User can view items list', async ({ page }) => {
 
 #### WRITE Path Tests (CRUD Operations)
 
-| Operation | Action | Expected |
-|-----------|--------|----------|
-| Create | Fill form, submit | New item in snapshot |
-| Update | Edit, save | Changes in snapshot |
-| Delete | Confirm delete | Item removed from snapshot |
-| Validation | Submit invalid | Error messages in snapshot |
+| Operation  | Action            | Expected                   |
+| ---------- | ----------------- | -------------------------- |
+| Create     | Fill form, submit | New item in snapshot       |
+| Update     | Edit, save        | Changes in snapshot        |
+| Delete     | Confirm delete    | Item removed from snapshot |
+| Validation | Submit invalid    | Error messages in snapshot |
 
 ```typescript
-test('US1-W1: User can create item', async ({ page }) => {
-  await page.goto('/items');
-  await page.getByRole('button', { name: /add/i }).click();
-  
+test("US1-W1: User can create item", async ({ page }) => {
+  await page.goto("/items");
+  await page.getByRole("button", { name: /add/i }).click();
+
   // Verify form structure with ARIA snapshot (dialog is an exception - use specific locator)
-  await expect(page.getByRole('dialog')).toMatchAriaSnapshot(`
+  await expect(page.getByRole("dialog")).toMatchAriaSnapshot(`
     - dialog:
       - heading "Add Item"
       - textbox "Name"
       - button "Save"
   `);
-  
-  await page.getByRole('textbox', { name: 'Name' }).fill('New Item');
-  await page.getByRole('button', { name: 'Save' }).click();
-  
+
+  await page.getByRole("textbox", { name: "Name" }).fill("New Item");
+  await page.getByRole("button", { name: "Save" }).click();
+
   // Verify item appears in list
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  await expect(page.locator("body")).toMatchAriaSnapshot(`
     - table:
       - rowgroup:
         - row:
@@ -166,13 +168,13 @@ test('US1-W1: User can create item', async ({ page }) => {
   `);
 });
 
-test('US1-W2: User can delete item', async ({ page }) => {
-  await seedAndNavigate(page, '/items', { items: [testItem] });
-  await page.getByRole('button', { name: /delete/i }).click();
-  await page.getByRole('button', { name: /confirm/i }).click();
-  
+test("US1-W2: User can delete item", async ({ page }) => {
+  await seedAndNavigate(page, "/items", { items: [testItem] });
+  await page.getByRole("button", { name: /delete/i }).click();
+  await page.getByRole("button", { name: /confirm/i }).click();
+
   // Verify item removed - use partial match
-  await expect(page.locator('body')).toMatchAriaSnapshot(`
+  await expect(page.locator("body")).toMatchAriaSnapshot(`
     - heading "Items" [level=1]
     - text: /no items/i
   `);
@@ -184,10 +186,10 @@ test('US1-W2: User can delete item', async ({ page }) => {
 Use `locator.ariaSnapshot()` to programmatically discover the accessibility tree:
 
 ```typescript
-test('discover page structure', async ({ page }) => {
-  await page.goto('/items');
+test("discover page structure", async ({ page }) => {
+  await page.goto("/items");
   // ALWAYS use body locator for discovery
-  const snapshot = await page.locator('body').ariaSnapshot();
+  const snapshot = await page.locator("body").ariaSnapshot();
   console.log(snapshot);
   // Copy relevant parts to your test assertion
 });
@@ -199,13 +201,13 @@ ARIA snapshots support partial matching - only specified elements need to match:
 
 ```typescript
 // ✅ GOOD: Partial match - flexible, only checks key elements
-await expect(page.locator('body')).toMatchAriaSnapshot(`
+await expect(page.locator("body")).toMatchAriaSnapshot(`
   - heading "Items" [level=1]
   - button "Add Item"
 `);
 
 // ❌ AVOID: Full match - brittle, breaks on any UI change
-await expect(page.locator('body')).toMatchAriaSnapshot(`
+await expect(page.locator("body")).toMatchAriaSnapshot(`
   - heading "Items" [level=1]
   - text: "Manage your items here"
   - button "Add Item"
@@ -232,6 +234,64 @@ test('should work', ...);
 test('empty state', ...);
 ```
 
+#### Selector Precision Rules (CRITICAL)
+
+**IMPORTANT**: Avoid selectors that match multiple elements. Common pitfalls:
+
+| Problem                        | Example                                                                        | Solution                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Username matches email         | `getByText('johndoe')` matches both `johndoe` and `johndoe@example.com`        | Use `getByText('johndoe', { exact: true })`                                   |
+| Filter options with counts     | `getByRole('option', { name: /active/i })` matches "Active 1" and "Inactive 1" | Use `getByRole('option', { name: /active/i }).first()` or more specific regex |
+| "Connected" vs "Not Connected" | `getByRole('option', { name: /connected/i })` matches both                     | Use `getByRole('option', { name: /^connected$/i })` with anchors              |
+| Multiple headings              | `getByRole('heading', { name: /tasks/i })` matches sidebar and page heading    | Use more specific container or `first()`                                      |
+
+```typescript
+// ❌ BAD: Matches multiple elements
+await page.getByText("activeuser").toBeVisible(); // Matches username AND email
+
+// ✅ GOOD: Exact match prevents partial matches
+await page.getByText("activeuser", { exact: true }).toBeVisible();
+
+// ❌ BAD: Regex matches "Active 1" and "Inactive 1"
+await page.getByRole("option", { name: /active/i }).click();
+
+// ✅ GOOD: Use first() when options show counts
+await page
+  .getByRole("option", { name: /active/i })
+  .first()
+  .click();
+
+// ❌ BAD: Matches "Connected" and "Not Connected"
+await page.getByRole("option", { name: /connected/i }).click();
+
+// ✅ GOOD: Anchor regex to match exact word
+await page.getByRole("option", { name: /^connected$/i }).click();
+```
+
+#### Test Assertion Anti-Patterns (NON-NEGOTIABLE)
+
+NEVER use these patterns:
+
+| Anti-Pattern                           | Why Bad                       | Correct Pattern                |
+| -------------------------------------- | ----------------------------- | ------------------------------ |
+| `expect(body).toBeVisible()`           | Tests nothing meaningful      | Test specific feature elements |
+| `expect(header).toBeVisible()` alone   | Proxy assertion               | Test actual feature content    |
+| Guessing selectors                     | Causes strict mode violations | Read code or HTML dump first   |
+| Using `.first()` without understanding | Masks selector issues         | Make selector more specific    |
+
+#### Spec-Critical Invariants MUST Have Explicit Assertions (NON-NEGOTIABLE)
+
+Some behaviors are **spec-critical invariants** and MUST NOT be tested via proxy assertions like "redirected away from page" or "sidebar is visible".
+
+- For these invariants, tests MUST include at least one explicit assertion on the authoritative state, such as:
+  - The authenticated session payload (e.g., permissions list, roles list)
+  - The underlying persisted storage state (when applicable in this prototype)
+  - A server-enforced denial/allow check that cannot be satisfied unless the invariant holds
+
+Examples:
+
+- Initial setup: after creating the first admin and signing in, MUST assert session includes `iam_admin` role AND includes all IAM permission codes.
+
 #### Test Independence
 
 - Tests MUST NOT depend on execution order
@@ -255,24 +315,27 @@ pnpm test:e2e --grep "Products"
 
 **Diagnosis Table:**
 
-| Error | Cause | Solution |
-|-------|-------|----------|
+| Error                   | Cause                   | Solution                                               |
+| ----------------------- | ----------------------- | ------------------------------------------------------ |
 | "strict mode violation" | Multiple elements match | Use `{ exact: true }`, regex anchors, or `data-testid` |
-| "element not found" | Wrong selector | Check HTML dump, update selector |
-| "timeout" | Loading/error state | Add wait or fix app crash |
-| Console error | App error | Fix app first, don't modify test |
-| 500 Error Page | Missing imports | Run `pnpm tsc --noEmit` to find import errors |
+| "element not found"     | Wrong selector          | Check HTML dump, update selector                       |
+| "timeout"               | Loading/error state     | Add wait or fix app crash                              |
+| Console error           | App error               | Fix app first, don't modify test                       |
+| 500 Error Page          | Missing imports         | Run `pnpm tsc --noEmit` to find import errors          |
 
 **NEVER weaken tests:**
+
 - If test expects behavior that doesn't exist → **ADD THE BEHAVIOR**
 - If test expects wrong behavior → **REMOVE THE TEST ENTIRELY** (not weaken it)
 - Never remove assertions to make tests pass
 
 **Handling Timeouts (Strict Rule):**
+
 - **Do Not Adjust Timeouts**: Never increase timeout values to bypass test failures. Timeouts often indicate elements are not found or the UI isn't ready, and extending timeouts masks the root cause.
 - **Correct Approach**: Revisit the component code to ensure selector accuracy. If the UI is slow, investigate app performance issues or use explicit waits for specific conditions (e.g., `await page.waitForLoadState('networkidle')`).
 
 **Before writing tests, verify UI behavior:**
+
 1. Read component code to understand what fields are searchable
 2. Check if groups/sections are collapsed by default
 3. Verify what text is actually rendered
@@ -284,6 +347,7 @@ pnpm test:e2e --grep "Products"
 **Required Files:**
 
 1. **`tests/e2e/utils/test-helpers.ts`** - Extended test fixture that captures:
+
    - All console messages (log, warn, info, error) - not just errors
    - HTML snapshot of the page on failure
    - Form validation messages (`[data-slot="form-message"]`)
@@ -297,12 +361,12 @@ pnpm test:e2e --grep "Products"
 
 **What Gets Captured on Test Failure:**
 
-| Data | Why | How |
-|------|-----|-----|
-| All console messages | Developers add `console.log` for debugging | Capture all `msg.type()` not just `error` |
-| Form validation messages | Shows actual vs expected validation text | Query `[data-slot="form-message"]` |
-| Form/Main HTML structure | Shows available selectors and structure | Capture `form` or `main` innerHTML |
-| Available test IDs | Quick selector alternatives | Query `[data-testid]` attributes |
+| Data                     | Why                                        | How                                       |
+| ------------------------ | ------------------------------------------ | ----------------------------------------- |
+| All console messages     | Developers add `console.log` for debugging | Capture all `msg.type()` not just `error` |
+| Form validation messages | Shows actual vs expected validation text   | Query `[data-slot="form-message"]`        |
+| Form/Main HTML structure | Shows available selectors and structure    | Capture `form` or `main` innerHTML        |
+| Available test IDs       | Quick selector alternatives                | Query `[data-testid]` attributes          |
 
 **Example Reporter Output:**
 
@@ -329,17 +393,19 @@ pnpm test:e2e --grep "Products"
 When debugging failing tests, add `console.log` in your test - they will appear in the reporter output:
 
 ```typescript
-test('debug example', async ({ page }) => {
-  await page.goto('/settings');
-  
+test("debug example", async ({ page }) => {
+  await page.goto("/settings");
+
   // These will appear in reporter output on failure
   await page.evaluate(() => {
-    console.log('DEBUG: Current form state');
+    console.log("DEBUG: Current form state");
   });
-  
-  const formMessages = await page.locator('[data-slot="form-message"]').allTextContents();
-  console.log('Form messages:', formMessages);  // Also captured
-  
+
+  const formMessages = await page
+    .locator('[data-slot="form-message"]')
+    .allTextContents();
+  console.log("Form messages:", formMessages); // Also captured
+
   await expect(page.getByText(/expected text/i)).toBeVisible();
 });
 ```
