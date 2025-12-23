@@ -17,11 +17,13 @@ Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP req
 ## CRITICAL: NO SKIPPING ALLOWED
 
 **⚠️ AI MUST NEVER skip any step in this workflow, regardless of:**
+
 - Whether the project appears to be "static" or "demo"
 - Whether the project doesn't currently use API calls
 - Whether localStorage isn't currently used
 
 **For every step, AI MUST:**
+
 1. **Actually install MSW** and initialize it
 2. **Actually create the handler files** specified
 3. **Actually update main.tsx** to start MSW
@@ -35,6 +37,7 @@ Set up and maintain a Mock Service Worker (MSW) backend that intercepts HTTP req
 **⚠️ MANDATORY: AI MUST run the workflow-runner command below and follow its output.**
 
 **DO NOT read the Steps section below and execute them manually.** The runner handles:
+
 - Step sequencing and state tracking
 - Nested workflow execution
 - AI task delegation with proper context
@@ -45,6 +48,43 @@ deno run -A https://raw.githubusercontent.com/theplant/workflow-runner/HEAD/run.
 
 Run this command, then follow the runner's instructions. The runner will tell you what to do next.
 
+## Core Principles (NON-NEGOTIABLE)
+
+### Cookie-Session Parity (Seamless switch OFF MSW)
+
+- Frontend MUST behave as if auth cookies are **always httpOnly**
+  - Frontend MUST NOT read auth cookies via `document.cookie` / `getCookie()` / similar
+  - Frontend MUST NOT store "authoritative session" in localStorage
+- Frontend MUST obtain current user + permissions from `GET /api/v1/auth/me` (single source of truth)
+  - Route guards MUST be based on `/auth/me` (or cached result), not on localStorage presence
+  - UI permission gates MUST use the permissions returned by `/auth/me` (directly or via app state)
+- HTTP client MUST be cookie-session compatible
+  - All API requests MUST send cookies (`credentials: 'include'`)
+  - API base URL MUST be configurable via environment (e.g. `VITE_API_BASE_URL`) so switching to real backend only requires config changes
+- MSW MAY use a non-httpOnly cookie (or in-memory flag) to simulate a session, but:
+  - That cookie is for MSW internal session state only
+  - Frontend code MUST NOT depend on that cookie being readable
+  - `/auth/me` MUST be the only supported way for frontend to discover session/user/permissions
+
+### Permission Requirements (CRITICAL - OpenAPI as Single Source of Truth)
+
+- Each endpoint's required permission MUST be defined in OpenAPI spec using `x-required-permission` field
+- MSW handlers MUST enforce the exact permission defined in `x-required-permission`
+- **Do NOT add alternative permissions not defined in the spec**
+- **Do NOT weaken permission checks to fix test failures**
+- If a test fails due to permission issues, fix the test data to include the required permission
+- Example in OpenAPI spec:
+  ```yaml
+  /systems:
+    get:
+      operationId: listSystems
+      x-required-permission: "iam:system:read" # MSW handler MUST check this exact permission
+  ```
+- When implementing MSW handlers, add a comment referencing the OpenAPI spec:
+  ```typescript
+  // Permission per OpenAPI spec: x-required-permission: "iam:system:read"
+  const permError = requirePermission(auth, "iam:system:read");
+  ```
 
 ## Steps
 
@@ -63,15 +103,17 @@ pnpm dlx msw init public/ --save
 
 ```typescript
 export const STORAGE_KEYS = {
-  PRODUCTS: 'prototype_products',
-  USERS: 'prototype_users',
+  PRODUCTS: "prototype_products",
+  USERS: "prototype_users",
   // Add keys for each entity type
 } as const;
 
 const isTestMode = () => {
-  return typeof window !== 'undefined' && 
-    (window.location.search.includes('test=true') || 
-     import.meta.env.MODE === 'test');
+  return (
+    typeof window !== "undefined" &&
+    (window.location.search.includes("test=true") ||
+      import.meta.env.MODE === "test")
+  );
 };
 
 export const storage = {
@@ -101,6 +143,7 @@ export const storage = {
 ```
 
 **Storage Rules:**
+
 - All data MUST be stored in localStorage (NOT in-memory variables)
 - In-memory data is lost on page navigation
 - localStorage persists across page navigations
@@ -110,23 +153,23 @@ export const storage = {
 **Why:** MSW handlers implement the API contract locally. Using `crypto.randomUUID()` ensures IDs match the format expected by real backends.
 
 ```typescript
-import { http, HttpResponse } from 'msw';
-import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { http, HttpResponse } from "msw";
+import { storage, STORAGE_KEYS } from "@/lib/storage";
 
 export const handlers = [
   // GET all items
-  http.get('/api/products', () => {
+  http.get("/api/products", () => {
     const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
     return HttpResponse.json({ data: products });
   }),
 
   // GET single item
-  http.get('/api/products/:id', ({ params }) => {
+  http.get("/api/products/:id", ({ params }) => {
     const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
     const product = products.find((p: any) => p.id === params.id);
     if (!product) {
       return HttpResponse.json(
-        { code: 'NOT_FOUND', message: 'Product not found' },
+        { code: "NOT_FOUND", message: "Product not found" },
         { status: 404 }
       );
     }
@@ -134,12 +177,12 @@ export const handlers = [
   }),
 
   // POST create item
-  http.post('/api/products', async ({ request }) => {
+  http.post("/api/products", async ({ request }) => {
     const body = await request.json();
     const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
     const newProduct = {
       ...body,
-      id: crypto.randomUUID(),  // MUST use UUID, not timestamp
+      id: crypto.randomUUID(), // MUST use UUID, not timestamp
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -149,13 +192,13 @@ export const handlers = [
   }),
 
   // PUT update item
-  http.put('/api/products/:id', async ({ params, request }) => {
+  http.put("/api/products/:id", async ({ params, request }) => {
     const body = await request.json();
     const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
     const index = products.findIndex((p: any) => p.id === params.id);
     if (index === -1) {
       return HttpResponse.json(
-        { code: 'NOT_FOUND', message: 'Product not found' },
+        { code: "NOT_FOUND", message: "Product not found" },
         { status: 404 }
       );
     }
@@ -169,7 +212,7 @@ export const handlers = [
   }),
 
   // DELETE item
-  http.delete('/api/products/:id', ({ params }) => {
+  http.delete("/api/products/:id", ({ params }) => {
     const products = storage.get(STORAGE_KEYS.PRODUCTS) || [];
     const filtered = products.filter((p: any) => p.id !== params.id);
     storage.set(STORAGE_KEYS.PRODUCTS, filtered);
@@ -179,6 +222,7 @@ export const handlers = [
 ```
 
 **Handler Rules:**
+
 - Use `crypto.randomUUID()` for IDs (NOT timestamp-based)
 - Handler paths MUST match OpenAPI spec exactly
 - HTTP status codes MUST follow OpenAPI spec (201 for create, 404 for not found)
@@ -188,8 +232,8 @@ export const handlers = [
 **Why:** This file sets up the MSW service worker that intercepts requests in the browser.
 
 ```typescript
-import { setupWorker } from 'msw/browser';
-import { handlers } from './handlers';
+import { setupWorker } from "msw/browser";
+import { handlers } from "./handlers";
 
 export const worker = setupWorker(...handlers);
 ```
@@ -199,6 +243,7 @@ export const worker = setupWorker(...handlers);
 **Why:** MSW should only be enabled when no real backend is configured. This allows seamless switching between mock and real backends.
 
 Find the project's API URL environment variable first:
+
 ```bash
 grep -rn "VITE_.*API\|VITE_.*URL" .env* src/ --include="*.ts" --include="*.tsx" 2>/dev/null | head -5
 ```
@@ -208,19 +253,19 @@ Then update `src/main.tsx`:
 ```typescript
 async function enableMocking() {
   // Replace VITE_API_URL with actual env var found in project
-  const hasRealBackend = !!import.meta.env.VITE_API_URL
-  
+  const hasRealBackend = !!import.meta.env.VITE_API_URL;
+
   if (!hasRealBackend) {
-    const { worker } = await import('./mocks/browser')
-    console.log('[MSW] Mock Service Worker enabled')
-    return worker.start({ onUnhandledRequest: 'bypass' })
+    const { worker } = await import("./mocks/browser");
+    console.log("[MSW] Mock Service Worker enabled");
+    return worker.start({ onUnhandledRequest: "bypass" });
   } else {
-    console.log('[App] Using real backend:', import.meta.env.VITE_API_URL)
+    console.log("[App] Using real backend:", import.meta.env.VITE_API_URL);
   }
 }
 
 enableMocking().then(() => {
-  ReactDOM.createRoot(document.getElementById('root')!).render(
+  ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <App />
     </React.StrictMode>
@@ -229,6 +274,7 @@ enableMocking().then(() => {
 ```
 
 **MSW Logic:**
+
 - API URL env var NOT set → MSW enabled
 - API URL env var set → MSW disabled, use real backend
 
@@ -263,13 +309,13 @@ import type {
   ListProductsResponse,
   ProductItemResponse,
   Product,
-} from '@/api/generated/models'
+} from "@/api/generated/models";
 
-http.get('/api/v1/products', () => {
-  const products = storage.get<Product[]>(STORAGE_KEYS.PRODUCTS) || []
+http.get("/api/v1/products", () => {
+  const products = storage.get<Product[]>(STORAGE_KEYS.PRODUCTS) || [];
   return HttpResponse.json<ListProductsResponse>({
     data: products,
     meta: { page: 1, limit: 20, total: products.length, totalPages: 1 },
-  })
-})
+  });
+});
 ```
