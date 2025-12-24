@@ -142,15 +142,7 @@ export default defineConfig({
 
 ### Step 4: Create `src/api/openapi.yaml`
 
-**Why:** The OpenAPI spec is the single source of truth for API contracts. It enables code generation for both frontend (Orval) and backend (oapi-codegen), ensuring type safety across the stack.
-
-Create the OpenAPI specification file.
-
-**OpenAPI Spec Requirements:**
-
-- Every endpoint MUST have `operationId` (Orval uses this to generate hook names)
-- All request/response schemas MUST be defined in `components/schemas`
-- The spec MUST be complete enough to hand to backend developers
+<!-- runner:workflow:theplant.openapi-spec-generation -->
 
 ### Step 5: Generate TypeScript Types and Hooks
 
