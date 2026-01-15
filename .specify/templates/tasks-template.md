@@ -1,5 +1,4 @@
 ---
-
 description: "Task list template for feature implementation"
 ---
 
@@ -8,7 +7,7 @@ description: "Task list template for feature implementation"
 **Input**: Design documents from `/specs/[###-feature-name]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
+**Tests**: The examples below include test tasks. Per constitution, Playwright E2E tests are REQUIRED for features.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -21,17 +20,16 @@ description: "Task list template for feature implementation"
 ## Path Conventions
 
 - **Source**: `src/` at repository root
-- **API Layer**: `src/api/` for OpenAPI spec, client, and generated types
+- **API Layer**: `src/api/` for OpenAPI spec and generated code
   - `src/api/openapi.yaml` - OpenAPI 3.0+ specification (deliverable for backend)
-  - `src/api/generated/` - Generated files - **AI MUST NOT EDIT** (regenerate from spec)
-  - `src/api/generated/schema.d.ts` - Generated types from openapi-typescript
-  - `src/api/client.ts` - Typed API client using openapi-fetch
+  - `src/api/generated/` - Orval-generated endpoints and models - **AI MUST NOT EDIT** (regenerate from spec)
+  - `src/api/custom-fetch.ts` - Orval mutator (custom fetch wrapper)
 - **MSW Mocks**: `src/mocks/` for Mock Service Worker handlers
   - `src/mocks/handlers.ts` - MSW request handlers (reads/writes localStorage)
   - `src/mocks/browser.ts` - MSW browser worker setup
-- **Hooks**: `src/hooks/` for custom hooks wrapping typed API client
+- **Hooks**: `src/hooks/` for shared custom hooks (if needed)
 - **Components**: `src/components/` for reusable UI components
-- **Pages**: `src/pages/` for route-level components
+- **Routes**: `src/routes/` for TanStack Router file-based routes
 - **Utilities**: `src/lib/` for helpers (storage.ts, etc.)
 - **Seed Data**: `src/data/` for demo/testing data
 - **E2E Tests**: `tests/e2e/` for Playwright tests only
@@ -40,21 +38,21 @@ description: "Task list template for feature implementation"
 
 **Code Generation**: Run `pnpm api:generate` after any OpenAPI spec changes
 
-<!-- 
+<!--
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
-  
+
   The /speckit.tasks command MUST replace these with actual tasks based on:
   - User stories from spec.md (with their priorities P1, P2, P3...)
   - Feature requirements from plan.md
   - Entities from data-model.md
   - Endpoints from contracts/
-  
+
   Tasks MUST be organized by user story so each story can be:
   - Implemented independently
   - Tested independently
   - Delivered as an MVP increment
-  
+
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================
 -->
@@ -65,8 +63,9 @@ description: "Task list template for feature implementation"
 
 **⚠️ IMPORTANT**: NEVER manually create config files that CLI tools generate (e.g., `tailwind.config.js`, `postcss.config.js`, `components.json`). Let CLI tools generate them.
 **⚠️ IMPORTANT**: Keep the below T001 exactly as it is.
+
 - [ ] T001 Create Vite project in current folder (non-interactive): `pnpm create vite@latest ./app --template react-ts --no-interactive && mv ./app/{.,}* . 2>/dev/null; rm -rf app`
-- [ ] T002 Install dependencies: `pnpm add react-router-dom lucide-react`
+- [ ] T002 Install dependencies: `pnpm add @tanstack/react-router @tanstack/react-router-devtools @tanstack/react-query lucide-react`
 - [ ] T003 Update `tsconfig.json` to add path alias (required before shadcn init):
   ```json
   {
@@ -91,11 +90,11 @@ description: "Task list template for feature implementation"
 
 ### API Layer Setup
 
-- [ ] T006 Install API dependencies: `pnpm add openapi-fetch && pnpm add -D openapi-typescript`
+- [ ] T006 Install API dependencies: `pnpm add -D orval`
 - [ ] T007 Create OpenAPI spec in `src/api/openapi.yaml` defining all endpoints
-- [ ] T008 Add npm script: `"api:generate": "openapi-typescript src/api/openapi.yaml -o src/api/generated/schema.d.ts"`
-- [ ] T009 Generate types: `pnpm api:generate` (creates `src/api/generated/schema.d.ts` - DO NOT EDIT)
-- [ ] T010 Create typed API client in `src/api/client.ts` using openapi-fetch
+- [ ] T008 Add npm script: `"api:generate": "orval"`
+- [ ] T009 Generate code: `pnpm api:generate` (creates `src/api/generated/*` - DO NOT EDIT)
+- [ ] T010 Ensure Orval uses mutator `src/api/custom-fetch.ts` (credentials + auth refresh behavior)
 
 ### MSW Mock Backend Setup
 
@@ -107,17 +106,19 @@ description: "Task list template for feature implementation"
   ```typescript
   async function enableMocking() {
     if (import.meta.env.DEV) {
-      const { worker } = await import('./mocks/browser');
-      return worker.start({ onUnhandledRequest: 'bypass' });
+      const { worker } = await import("./mocks/browser");
+      return worker.start({ onUnhandledRequest: "bypass" });
     }
   }
-  enableMocking().then(() => { /* render app */ });
+  enableMocking().then(() => {
+    /* render app */
+  });
   ```
 
 ### Storage & Routing
 
 - [ ] T016 [P] Create localStorage wrapper in `src/lib/storage.ts` with logging for test mode
-- [ ] T017 [P] Setup React Router with base routes in `src/App.tsx`
+- [ ] T017 [P] Setup TanStack Router with base routes in `src/routes/`
 - [ ] T018 [P] Create seed data utilities in `src/data/`
 
 ### Playwright Configuration
