@@ -1,42 +1,77 @@
 <!--
-SYNC IMPACT REPORT - 2025-12-18
+SYNC IMPACT REPORT - 2026-01-06
 ================================
-Version change: 2.6.0 → 2.7.0 (MINOR)
+Version change: 2.9.5 → 2.9.6 (PATCH)
 
 Modified Principles:
-- ALL principles: Replaced Roman numeral numbering with short descriptive names
-  - This allows inserting new principles without disturbing existing references
-  - Format: `### SHORT-NAME: Full Title`
-  - Examples: E2E-TESTING, ROOT-CAUSE-TRACING, OPENAPI-FIRST
-
-Principle Name Mapping (old → new):
-- I → E2E-TESTING
-- II → SPEC-EVOLUTION
-- III → ROOT-CAUSE-TRACING
-- IV (first) → TASK-VERIFICATION
-- IV (second, was duplicate) → MSW-MOCK-BACKEND
-- VI → COMPONENT-UI
-- VII → STATE-MANAGEMENT
-- VIII → SIMPLICITY
-- IX → ACCEPTANCE-COVERAGE
-- X → OPENAPI-FIRST
+- BACKEND-READY
+  - Add refresh-on-401 session strategy (single-flight refresh + retry + redirect on failure)
+  - Align switching-to-real-backend guidance with DEV-only MSW enablement
+- OPENAPI-FIRST
+  - Declare permission codes source of truth as OpenAPI (no ad-hoc permission strings)
 
 Templates Updated:
-- ✅ theplant workflows - Updated to use new principle names
+- ✅ constitution.md - Added auth refresh and permission source-of-truth rules
 
-Previous Changes (v2.6.0):
-- Principle E2E-TESTING: Enhanced test data requirements
-  - Added requirement to use TypeScript types from openapi.yaml for test data
-  - Added Zustand persist store seeding pattern with page.reload()
-  - Added correct localStorage key documentation (pim-mock-db)
-- Principle ROOT-CAUSE-TRACING: Added No-Give-Up Rule
-  - AI agents MUST NOT abandon problems by reverting to simpler approaches
-  - AI agents MUST continue investigating until root cause is found
-  - Added violation and correct behavior examples
+Deferred Items:
+- TODO(INTEGRATION_GUIDE_LOCATION): Decide canonical location for cross-system integration guide
 ================================
 -->
 
 # Clickable Prototype Constitution
+
+## Project Context & Scope
+
+**Platform Context**
+
+- Qortex is the e-commerce platform's backoffice product family.
+- Each backoffice system (e.g., PIM, CIAM, OIM, Marketing, Loyalty) typically consists of:
+  - A React SPA Console
+  - A Golang Console API (BFF) serving that console
+
+**This Repository's Focus**
+
+- This repository delivers the Qortex **Console** and the **OpenAPI specification** required by
+  the Console API.
+
+**Deliverables (NON-NEGOTIABLE)**
+
+- Console (React SPA)
+- OpenAPI Spec: `src/api/openapi.yaml`
+- This repository does **NOT** implement the Console API backend in Golang.
+
+**Prototype Definition (Backend-Ready)**
+
+- “Prototype” refers to running Console **without** a real backend API connected:
+  - Requests go through the OpenAPI-defined HTTP layer
+  - MSW serves responses from localStorage so the product can be demoed end-to-end
+- The delivered Console MUST also work with a real backend by configuration only:
+  - Switching from MSW/localStorage to real API MUST NOT require frontend code changes
+
+**Backend-Ready (Near-Production) Expectations**
+
+- The Console MUST be usable as a near-production frontend:
+  - Key user journeys MUST be complete (navigation, list/detail, create/update, error handling).
+  - UX states MUST be complete (loading, empty, validation errors, server errors).
+- The OpenAPI spec is the contract and MUST be implementable by backend teams:
+  - Base path and versioning MUST be explicit and stable (e.g., `/api/v1`).
+  - Auth requirements MUST be declared (security schemes, required scopes/permissions).
+  - Error responses MUST be defined (status codes + error schema), not “happy-path only”.
+  - Pagination/filter/sort conventions MUST be consistent across endpoints.
+- All data access MUST go through the OpenAPI-defined HTTP layer:
+  - No direct localStorage reads/writes in feature code (except via the mock backend layer).
+  - MSW/localStorage is a DEV-only backend substitute; production builds MUST NOT depend on MSW.
+- Switching between MSW (mock) and a real backend MUST be configuration-only:
+  - The switch MUST be controlled via environment/runtime configuration.
+  - Switching MUST NOT require changing feature/business code (no “mock-only branches”).
+- “Near-production” refers to architecture and contract discipline, not production operations.
+
+**Scope Boundary**
+
+- Console itself MUST be complete as a standalone system.
+- Other Qortex systems integration is supported via:
+  - Example code and/or integration guide for how other service consoles integrate with Console
+  - The Console OpenAPI contract and recommended integration patterns
 
 ## Core Principles
 
@@ -89,39 +124,39 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
 - Example implementation in `tests/e2e/utils/test-helpers.ts`:
 
   ```typescript
-  import { test as base, Page } from '@playwright/test'
+  import { test as base, Page } from "@playwright/test";
 
   export function setupConsoleErrorCapture(
     page: Page,
     failTest: (error: Error) => void
   ): void {
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        const text = msg.text()
-        process.stderr.write(`[Console Error] ${text}\n`)
-        failTest(new Error(`Console error: ${text}`))
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        const text = msg.text();
+        process.stderr.write(`[Console Error] ${text}\n`);
+        failTest(new Error(`Console error: ${text}`));
       }
-    })
+    });
 
-    page.on('pageerror', (error) => {
-      process.stderr.write(`[Page Error] ${error.message}\n`)
-      failTest(new Error(`Page error: ${error.message}`))
-    })
+    page.on("pageerror", (error) => {
+      process.stderr.write(`[Page Error] ${error.message}\n`);
+      failTest(new Error(`Page error: ${error.message}`));
+    });
   }
 
-  export const test = base.extend<{}>({})
+  export const test = base.extend<{}>({});
 
   test.beforeEach(async ({ page }, testInfo) => {
     setupConsoleErrorCapture(page, (error) => {
       testInfo.annotations.push({
-        type: 'console-error',
+        type: "console-error",
         description: error.message,
-      })
-      throw error
-    })
-  })
+      });
+      throw error;
+    });
+  });
 
-  export { expect } from '@playwright/test'
+  export { expect } from "@playwright/test";
   ```
 
 - This approach ensures tests fail immediately on console errors without manual assertions
@@ -157,18 +192,18 @@ All testing MUST be done exclusively with Playwright end-to-end tests.
     use: {
       actionTimeout: 1000,
     },
-  })
+  });
   ```
 - Example test fixture for HTML dump on failure:
   ```typescript
   test.afterEach(async ({ page }, testInfo) => {
-    if (testInfo.status !== 'passed') {
-      const html = await page.content()
-      console.log('=== PAGE HTML ON FAILURE ===')
-      console.log(html)
-      console.log('=== END PAGE HTML ===')
+    if (testInfo.status !== "passed") {
+      const html = await page.content();
+      console.log("=== PAGE HTML ON FAILURE ===");
+      console.log(html);
+      console.log("=== END PAGE HTML ===");
     }
-  })
+  });
   ```
 - This approach replaces manual `assertNoPageErrors()` calls - the fast timeout + HTML dump provides equivalent debugging information automatically
 
@@ -203,50 +238,55 @@ The following guidelines enable AI agents to write effective E2E tests autonomou
 
 **Selector Strategy Hierarchy (NON-NEGOTIABLE)**
 AI agents MUST use selectors in this priority order:
+
 1. `data-testid` - Most stable, explicitly added for testing, survives refactoring
 2. `role` - Semantic, accessible, follows ARIA patterns (e.g., `getByRole('button')`)
 3. `text` - Human-readable but fragile, changes with copy updates (e.g., `getByText('Submit')`)
 4. `CSS` - Last resort, most fragile, breaks with styling changes (e.g., `locator('.btn')`)
 
 Example:
+
 ```typescript
 // ✅ Priority 1: data-testid (best)
-page.getByTestId('submit-button')
+page.getByTestId("submit-button");
 
 // ✅ Priority 2: role (good)
-page.getByRole('button', { name: /submit/i })
+page.getByRole("button", { name: /submit/i });
 
 // ⚠️ Priority 3: text (acceptable)
-page.getByText('Submit')
+page.getByText("Submit");
 
 // ❌ Priority 4: CSS (avoid)
-page.locator('.submit-btn')
+page.locator(".submit-btn");
 ```
 
 **Test Assertion Anti-Patterns (NON-NEGOTIABLE)**
 AI agents MUST NOT use these patterns:
 
-| Anti-Pattern | Why Bad | Correct Pattern |
-|--------------|---------|-----------------|
-| `expect(body).toBeVisible()` | Tests nothing meaningful | Test specific feature elements |
-| `expect(header).toBeVisible()` alone | Proxy assertion, doesn't test feature | Test actual feature content |
-| Guessing selectors without reading code | Causes strict mode violations | Read code or HTML dump first |
-| Using `.first()` without understanding why | Masks selector specificity issues | Make selector more specific |
+| Anti-Pattern                               | Why Bad                               | Correct Pattern                |
+| ------------------------------------------ | ------------------------------------- | ------------------------------ |
+| `expect(body).toBeVisible()`               | Tests nothing meaningful              | Test specific feature elements |
+| `expect(header).toBeVisible()` alone       | Proxy assertion, doesn't test feature | Test actual feature content    |
+| Guessing selectors without reading code    | Causes strict mode violations         | Read code or HTML dump first   |
+| Using `.first()` without understanding why | Masks selector specificity issues     | Make selector more specific    |
 
 Example violation:
+
 ```typescript
 // ❌ BAD: Tests nothing about the feature
-test('should display products', async ({ page }) => {
-  await page.goto('/products');
-  await expect(page.locator('body')).toBeVisible();
+test("should display products", async ({ page }) => {
+  await page.goto("/products");
+  await expect(page.locator("body")).toBeVisible();
 });
 
 // ✅ GOOD: Tests actual feature behavior
-test('should display products', async ({ page }) => {
-  await page.goto('/products');
-  await expect(page.getByRole('heading', { name: /products/i })).toBeVisible();
-  await expect(page.getByTestId('product-list')).toBeVisible();
-  await expect(page.locator('[data-testid="product-item"]').first()).toBeVisible();
+test("should display products", async ({ page }) => {
+  await page.goto("/products");
+  await expect(page.getByRole("heading", { name: /products/i })).toBeVisible();
+  await expect(page.getByTestId("product-list")).toBeVisible();
+  await expect(
+    page.locator('[data-testid="product-item"]').first()
+  ).toBeVisible();
 });
 ```
 
@@ -254,16 +294,19 @@ test('should display products', async ({ page }) => {
 When tests fail, AI agents MUST follow this diagnosis process using the HTML dump output:
 
 1. **"strict mode violation" error** (multiple elements match)
+
    - Read the error message for element count and suggestions
    - Action: Make selector more specific using `data-testid`, or use `.first()` only if multiple matches are expected
 
 2. **"element not found" error**
+
    - Check HTML dump for:
      - Element exists with different attributes → Update selector to match actual attributes
      - Element truly missing → Check if feature is implemented
      - Page shows error boundary/crash → Fix application bug first
 
 3. **"timeout" error**
+
    - Check HTML dump for:
      - Page loaded but element missing → Wrong selector or missing feature
      - Page shows loading state → Add explicit wait for content
@@ -277,6 +320,7 @@ When tests fail, AI agents MUST follow this diagnosis process using the HTML dum
 Before writing tests for an unfamiliar system, AI agents MUST follow this protocol:
 
 **Step 1: Read Route Definitions**
+
 - Explore `src/routes/` directory structure
 - List all route files to understand available pages
 - Note route parameters and authentication requirements
@@ -291,6 +335,7 @@ For every route, AI agents MUST trace the code path from route → component →
 4. **Read the MSW handlers or storage layer** to understand the data schema
 
 Example trace for `/products`:
+
 ```
 src/routes/_authenticated/products/index.tsx
   → renders Products component
@@ -304,6 +349,7 @@ src/routes/_authenticated/products/index.tsx
 
 **Step 3: Identify Required Test Data**
 From the storage layer trace, identify:
+
 - What data entities the route displays (products, users, categories, etc.)
 - What fields are required for each entity
 - What relationships exist between entities
@@ -314,26 +360,27 @@ Every test MUST seed its own data in `beforeEach`. Tests MUST NOT rely on pre-ex
 
 **Test Data MUST Use Generated TypeScript Types (NON-NEGOTIABLE)**
 Test data MUST be typed using TypeScript types generated from `openapi.yaml`. This ensures:
+
 - Compile-time validation of test data schema
 - Automatic detection of API schema changes
 - Consistent data structure between tests and application
 
 ```typescript
 // ✅ GOOD: Import types from generated API schemas
-import type { Product } from '@/lib/api/generated/schemas';
+import type { Product } from "@/lib/api/generated/schemas";
 
 // Helper function with proper typing
 const createTestProduct = (
-  id: string, 
-  sku: string, 
-  name: string, 
-  price: number, 
-  status: Product['status'] = 'active'
+  id: string,
+  sku: string,
+  name: string,
+  price: number,
+  status: Product["status"] = "active"
 ): Product => ({
   id,
   sku,
   name: { en: name },
-  slug: name.toLowerCase().replace(/\s+/g, '-'),
+  slug: name.toLowerCase().replace(/\s+/g, "-"),
   description: { en: `Description for ${name}` },
   shortDescription: { en: `Short desc for ${name}` },
   status,
@@ -341,55 +388,56 @@ const createTestProduct = (
   tags: [],
   attributes: [],
   variants: [],
-  pricing: { price, currency: 'USD' },
+  pricing: { price, currency: "USD" },
   mediaIds: [],
   media: [],
-  seo: { slug: name.toLowerCase().replace(/\s+/g, '-') },
+  seo: { slug: name.toLowerCase().replace(/\s+/g, "-") },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });
 
 // ❌ BAD: Untyped object literals that may miss required fields
-const badProduct = { id: '1', name: 'Test', price: 99 }; // Missing required fields!
+const badProduct = { id: "1", name: "Test", price: 99 }; // Missing required fields!
 ```
 
 **Seeding Pattern for Zustand Persist Stores**
 When the app uses Zustand with persist middleware:
+
 1. Navigate to app first to access localStorage
 2. Seed data with correct localStorage key (check store.ts for `name` in persist config)
 3. Call `page.reload()` to force Zustand to re-hydrate from localStorage
 4. Navigate to target route
 
 ```typescript
-test.describe('Products', () => {
+test.describe("Products", () => {
   const testProducts: Product[] = [
-    createTestProduct('1', 'SKU-001', 'Test Product 1', 99.99, 'active'),
-    createTestProduct('2', 'SKU-002', 'Test Product 2', 149.99, 'draft'),
+    createTestProduct("1", "SKU-001", "Test Product 1", 99.99, "active"),
+    createTestProduct("2", "SKU-002", "Test Product 2", 149.99, "draft"),
   ];
 
-  test('should display products with seeded data', async ({ page }) => {
+  test("should display products with seeded data", async ({ page }) => {
     // 1. Navigate to app first to access localStorage
-    await page.goto('/');
-    
+    await page.goto("/");
+
     // 2. Seed test data with correct localStorage key
     await page.evaluate((products) => {
-      const existingData = localStorage.getItem('pim-mock-db'); // Check store.ts for key
+      const existingData = localStorage.getItem("pim-mock-db"); // Check store.ts for key
       const data = existingData ? JSON.parse(existingData) : { state: {} };
       data.state = data.state || {};
       data.state.products = products;
       data.state.isSeeded = true;
-      localStorage.setItem('pim-mock-db', JSON.stringify(data));
+      localStorage.setItem("pim-mock-db", JSON.stringify(data));
     }, testProducts);
-    
+
     // 3. CRITICAL: Full page reload to force Zustand to re-hydrate
     await page.reload();
-    
+
     // 4. Navigate to target route
-    await page.goto('/products');
-    
+    await page.goto("/products");
+
     // Assert on the ACTUAL seeded data
-    await expect(page.getByText('Test Product 1')).toBeVisible();
-    await expect(page.getByText('SKU-001')).toBeVisible();
+    await expect(page.getByText("Test Product 1")).toBeVisible();
+    await expect(page.getByText("SKU-001")).toBeVisible();
   });
 });
 ```
@@ -397,57 +445,64 @@ test.describe('Products', () => {
 **Step 5: Test All Data Cases (NON-NEGOTIABLE)**
 For each route, AI agents MUST write tests for these data scenarios:
 
-| Scenario | Test Data | Expected Behavior |
-|----------|-----------|-------------------|
-| Empty state | `[]` or `null` | Shows empty state message/illustration |
-| Single item | `[{...}]` | Shows single item correctly |
-| Multiple items | `[{...}, {...}, {...}]` | Shows all items, pagination if applicable |
-| Error state | Invalid data or API error | Shows error message |
-| Loading state | Delay in data | Shows loading indicator |
+| Scenario       | Test Data                 | Expected Behavior                         |
+| -------------- | ------------------------- | ----------------------------------------- |
+| Empty state    | `[]` or `null`            | Shows empty state message/illustration    |
+| Single item    | `[{...}]`                 | Shows single item correctly               |
+| Multiple items | `[{...}, {...}, {...}]`   | Shows all items, pagination if applicable |
+| Error state    | Invalid data or API error | Shows error message                       |
+| Loading state  | Delay in data             | Shows loading indicator                   |
 
 Example:
+
 ```typescript
-test.describe('Products - Data Scenarios', () => {
-  test('should show empty state when no products exist', async ({ page }) => {
+test.describe("Products - Data Scenarios", () => {
+  test("should show empty state when no products exist", async ({ page }) => {
     await page.evaluate(() => {
-      localStorage.setItem('prototype_products', JSON.stringify([]));
+      localStorage.setItem("prototype_products", JSON.stringify([]));
     });
-    await page.goto('/products');
+    await page.goto("/products");
     await expect(page.getByText(/no products/i)).toBeVisible();
   });
 
-  test('should display single product', async ({ page }) => {
+  test("should display single product", async ({ page }) => {
     await page.evaluate(() => {
-      localStorage.setItem('prototype_products', JSON.stringify([
-        { id: '1', name: 'Only Product', sku: 'ONLY-001' }
-      ]));
+      localStorage.setItem(
+        "prototype_products",
+        JSON.stringify([{ id: "1", name: "Only Product", sku: "ONLY-001" }])
+      );
     });
-    await page.goto('/products');
-    await expect(page.getByText('Only Product')).toBeVisible();
+    await page.goto("/products");
+    await expect(page.getByText("Only Product")).toBeVisible();
   });
 
-  test('should display multiple products', async ({ page }) => {
+  test("should display multiple products", async ({ page }) => {
     await page.evaluate(() => {
-      localStorage.setItem('prototype_products', JSON.stringify([
-        { id: '1', name: 'Product A', sku: 'A-001' },
-        { id: '2', name: 'Product B', sku: 'B-001' },
-        { id: '3', name: 'Product C', sku: 'C-001' },
-      ]));
+      localStorage.setItem(
+        "prototype_products",
+        JSON.stringify([
+          { id: "1", name: "Product A", sku: "A-001" },
+          { id: "2", name: "Product B", sku: "B-001" },
+          { id: "3", name: "Product C", sku: "C-001" },
+        ])
+      );
     });
-    await page.goto('/products');
-    await expect(page.getByText('Product A')).toBeVisible();
-    await expect(page.getByText('Product B')).toBeVisible();
-    await expect(page.getByText('Product C')).toBeVisible();
+    await page.goto("/products");
+    await expect(page.getByText("Product A")).toBeVisible();
+    await expect(page.getByText("Product B")).toBeVisible();
+    await expect(page.getByText("Product C")).toBeVisible();
   });
 });
 ```
 
 **Step 6: Assert on Seeded Data (NON-NEGOTIABLE)**
 Assertions MUST reference the actual test data that was seeded:
+
 - ❌ BAD: `expect(page.getByRole('table')).toBeVisible()` - doesn't verify data
 - ✅ GOOD: `expect(page.getByText('Test Product 1')).toBeVisible()` - verifies seeded data appears
 
 **CRITICAL**: AI agents MUST NOT:
+
 - Guess what data exists in the system
 - Write tests that pass regardless of data
 - Use generic assertions that don't verify actual content
@@ -461,15 +516,19 @@ For routes requiring authentication, AI agents MUST:
 3. Use fixture in `beforeEach` for authenticated tests
 
 Example fixture:
+
 ```typescript
 export async function loginAsTestUser(page: Page) {
   // For mock auth (localStorage-based)
   await page.evaluate(() => {
-    localStorage.setItem('auth_token', 'test-token');
-    localStorage.setItem('user', JSON.stringify({ 
-      id: 1, 
-      email: 'test@example.com' 
-    }));
+    localStorage.setItem("auth_token", "test-token");
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        id: 1,
+        email: "test@example.com",
+      })
+    );
   });
 }
 
@@ -481,15 +540,16 @@ test.beforeEach(async ({ page }) => {
 
 **Async Content Wait Patterns (NON-NEGOTIABLE)**
 For dynamic content, use explicit waits instead of arbitrary timeouts:
+
 ```typescript
 // ✅ Wait for specific element (preferred)
-await expect(page.getByTestId('data-loaded')).toBeVisible();
+await expect(page.getByTestId("data-loaded")).toBeVisible();
 
 // ✅ Wait for network idle (use sparingly)
-await page.waitForLoadState('networkidle');
+await page.waitForLoadState("networkidle");
 
 // ✅ Wait for specific response
-await page.waitForResponse(resp => resp.url().includes('/api/data'));
+await page.waitForResponse((resp) => resp.url().includes("/api/data"));
 
 // ❌ Avoid: arbitrary timeouts (flaky)
 // await page.waitForTimeout(1000);
@@ -544,12 +604,14 @@ When problems occur during development, root cause analysis MUST be performed be
 
 **No-Give-Up Rule (NON-NEGOTIABLE)**
 AI agents MUST NEVER abandon a problem by:
+
 - Reverting to "simpler" approaches that avoid the actual issue
 - Saying "this won't work easily with this architecture"
 - Removing tests or features because they're "too complex"
 - Giving up after initial failures without exhausting root cause analysis
 
 Instead, AI agents MUST:
+
 1. Continue investigating until the root cause is found
 2. Try multiple hypotheses systematically
 3. Read source code to understand the actual implementation
@@ -557,12 +619,14 @@ Instead, AI agents MUST:
 5. Only escalate to the user when genuinely blocked after thorough investigation
 
 **Example of Violation**:
+
 ```
-❌ "The data seeding approach won't work easily with this architecture. 
+❌ "The data seeding approach won't work easily with this architecture.
     Let me revert to simpler tests that work with the existing seeded data."
 ```
 
 **Example of Correct Behavior**:
+
 ```
 ✅ "The seeding isn't working. Let me trace the root cause:
     1. Reproduce: Data not appearing after seeding localStorage
@@ -613,7 +677,6 @@ pnpm tsc --noEmit && pnpm test
 
 **Rationale**: TypeScript compilation and test execution are the minimum quality gates that ensure code correctness. Declaring a task complete without passing these checks creates false confidence and technical debt. This principle ensures every completed task maintains the codebase's integrity.
 
-
 ### MSW-MOCK-BACKEND: Local Storage Data Layer (MSW Mock Backend)
 
 All data persistence MUST use browser localStorage, served via Mock Service Worker (MSW) that responds to OpenAPI-formatted HTTP requests. This architecture enables seamless future migration to a real backend API.
@@ -640,30 +703,30 @@ All data persistence MUST use browser localStorage, served via Mock Service Work
 
 ```typescript
 // src/mocks/handlers.ts
-import { http, HttpResponse } from 'msw'
-import { storage, STORAGE_KEYS } from '@/lib/storage'
+import { http, HttpResponse } from "msw";
+import { storage, STORAGE_KEYS } from "@/lib/storage";
 
 export const handlers = [
-  http.get('/api/todos', () => {
-    const todos = storage.get(STORAGE_KEYS.TODOS) || []
-    return HttpResponse.json(todos)
+  http.get("/api/todos", () => {
+    const todos = storage.get(STORAGE_KEYS.TODOS) || [];
+    return HttpResponse.json(todos);
   }),
-  http.post('/api/todos', async ({ request }) => {
-    const body = await request.json()
+  http.post("/api/todos", async ({ request }) => {
+    const body = await request.json();
     // ... handle creation
-    return HttpResponse.json(newTodo, { status: 201 })
+    return HttpResponse.json(newTodo, { status: 201 });
   }),
-]
+];
 ```
 
 **MSW Browser Setup**
 
 ```typescript
 // src/mocks/browser.ts
-import { setupWorker } from 'msw/browser'
-import { handlers } from './handlers'
+import { setupWorker } from "msw/browser";
+import { handlers } from "./handlers";
 
-export const worker = setupWorker(...handlers)
+export const worker = setupWorker(...handlers);
 ```
 
 **MSW Initialization in App**
@@ -672,14 +735,14 @@ export const worker = setupWorker(...handlers)
 // src/main.tsx
 async function enableMocking() {
   if (import.meta.env.DEV) {
-    const { worker } = await import('./mocks/browser')
-    return worker.start({ onUnhandledRequest: 'bypass' })
+    const { worker } = await import("./mocks/browser");
+    return worker.start({ onUnhandledRequest: "bypass" });
   }
 }
 
 enableMocking().then(() => {
   // Render app after MSW is ready
-})
+});
 ```
 
 **Type Safety Requirements**
@@ -768,6 +831,91 @@ All data access MUST go through an API layer defined by OpenAPI specification. T
 - Request/response schemas MUST be defined in the OpenAPI spec
 - The spec MUST be complete enough to hand to backend developers for implementation
 
+**API Design Guidelines Compliance (NON-NEGOTIABLE)**
+
+- The OpenAPI spec MUST follow these rules (self-contained):
+- OpenAPI base structure MUST be versioned and consistent:
+  - `openapi: 3.0.4`
+  - `servers: - url: /api/v1`
+- Naming conventions MUST be consistent:
+  - Paths: plural nouns, lowercase, kebab-case
+  - JSON fields and query params: camelCase
+  - Schema names: PascalCase
+  - `operationId`: camelCase verb + resource (e.g., `listUsers`, `getUser`, `updateUser`)
+  - Enum values: lowercase or kebab-case
+- IDs MUST be strings in API contracts:
+  - Primary key: `id: string`
+  - Foreign keys: `<resource>NameId` (e.g., `userId`, `roleId`)
+- Response envelope MUST follow the standard shape:
+  - Success: `{ data: ... }` (optional `meta`)
+  - Errors (non-2xx): `{ error: { code, message, details? } }`
+- List endpoints MUST choose exactly one pagination style per endpoint:
+  - Offset: `page`, `limit` (+ `sort`), meta matches offset schema
+  - Cursor: `after` XOR `before`, `limit` (+ deterministic `sort` with tie-breaker), meta matches cursor schema
+  - Endpoints SHOULD declare an explicit marker: `x-pagination: offset|cursor`
+- Custom actions MUST use the action pattern:
+  - `POST /resources/{id}/actions/{action-name}`
+  - Bulk delete MUST use a POST action (NOT `DELETE` with body)
+
+**OpenAPI Validation (NON-NEGOTIABLE)**
+
+- Every OpenAPI change MUST be validated before regenerating and committing generated code:
+  - Run OpenAPI lint (e.g., Spectral)
+  - If `.redocly.yaml` exists, lint with Redocly as well
+  - Run a mandatory OpenAPI 3.0.x `$ref` sibling-key check (no sibling keys next to `$ref`; use `allOf` wrapper)
+- After OpenAPI changes:
+  - Run `pnpm api:generate`
+  - Update MSW handlers to match changed paths/methods/schemas
+
+**Authorization Contract (AuthZ) (NON-NEGOTIABLE)**
+
+- Authorization requirements MUST be expressed in the OpenAPI spec, not only in frontend code or
+  backend implementation details
+- OpenAPI MUST define authentication mechanisms in `components.securitySchemes`
+- Protected operations MUST declare `security` requirements (globally or per-operation)
+- Protected operations that require permissions MUST declare required permissions using the vendor
+  extension `x-required-permission` (scheme B)
+- OpenAPI MUST specify error response semantics for authorization:
+  - `401` = unauthenticated
+  - `403` = authenticated but forbidden
+- Frontend route guards and UI permission gating MUST follow the OpenAPI-defined contract and the
+  server responses (no ad-hoc, undocumented auth behaviors)
+
+**`x-required-permission` Format (NON-NEGOTIABLE)**
+
+- Location: MUST be defined on each OpenAPI operation that requires permissions
+- Type: MUST be either:
+  - a string permission code (shorthand)
+  - or an object with optional `anyOf` and `allOf` arrays
+- Semantics:
+  - string: equivalent to `allOf: [<string>]`
+  - `allOf`: the current user MUST have every permission listed
+  - `anyOf`: the current user MUST have at least one permission listed
+  - If both exist, `allOf` AND (`anyOf` if provided) must be satisfied
+- If an operation is public (`security: []`), it MUST NOT declare `x-required-permission`
+
+Example:
+
+```yaml
+paths:
+  /users:
+    get:
+      security:
+        - sessionCookie: []
+      x-required-permission: "iam:user:read"
+      responses:
+        "200": { ... }
+        "401": { ... }
+        "403": { ... }
+```
+
+**Permission Codes Source of Truth (NON-NEGOTIABLE)**
+
+- Permission codes MUST be defined in OpenAPI (e.g., `x-iam-permissions`) as the contract source
+- Operations MUST reference only OpenAPI-defined permission codes in `x-required-permission`
+- Frontend permission constants (if any) MUST be treated as derived artifacts and kept in sync
+- No ad-hoc permission strings are allowed in frontend or MSW logic
+
 **Code Generation with Orval (NON-NEGOTIABLE)**
 
 - TypeScript types and React Query hooks MUST be generated from OpenAPI spec using `orval`
@@ -775,23 +923,23 @@ All data access MUST go through an API layer defined by OpenAPI specification. T
 - Create config file `orval.config.ts` at project root:
 
   ```typescript
-  import { defineConfig } from 'orval'
+  import { defineConfig } from "orval";
 
   export default defineConfig({
     api: {
       output: {
-        mode: 'tags-split',
-        target: 'src/api/generated/endpoints',
-        schemas: 'src/api/generated/models',
-        client: 'react-query',
+        mode: "tags-split",
+        target: "src/api/generated/endpoints",
+        schemas: "src/api/generated/models",
+        client: "react-query",
         mock: false,
-        baseUrl: '/api',
+        baseUrl: "/api",
       },
       input: {
-        target: './src/api/openapi.yaml',
+        target: "./src/api/openapi.yaml",
       },
     },
-  })
+  });
   ```
 
 - Add npm script: `"api:generate": "orval"`
@@ -814,7 +962,7 @@ All data access MUST go through an API layer defined by OpenAPI specification. T
     useListUsers,
     useGetUser,
     useCreateUser,
-  } from '@/api/generated/endpoints/users'
+  } from "@/api/generated/endpoints/users";
   ```
 - All API calls MUST use the generated hooks or functions
 - For custom fetch wrapper, use Orval's mutator option:
@@ -847,55 +995,55 @@ All data access MUST go through an API layer defined by OpenAPI specification. T
 
   ```typescript
   // src/mocks/handlers.ts
-  import { http, HttpResponse } from 'msw'
-  import { storage, STORAGE_KEYS } from '@/lib/storage'
+  import { http, HttpResponse } from "msw";
+  import { storage, STORAGE_KEYS } from "@/lib/storage";
   // Import types from orval-generated models for type safety
   import type {
     ListUsersResponse,
     UserItemResponse,
     User,
-  } from '@/api/generated/models'
+  } from "@/api/generated/models";
 
   export const handlers = [
     // GET /api/users - read from localStorage
-    http.get('/api/v1/users', () => {
-      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || []
+    http.get("/api/v1/users", () => {
+      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || [];
       return HttpResponse.json<ListUsersResponse>({
         data: users,
         meta: { page: 1, limit: 20, total: users.length, totalPages: 1 },
-      })
+      });
     }),
 
     // GET /api/users/:userId - read from localStorage
-    http.get('/api/v1/users/:userId', ({ params }) => {
-      const { userId } = params
-      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || []
-      const user = users.find((u) => u.id === userId)
+    http.get("/api/v1/users/:userId", ({ params }) => {
+      const { userId } = params;
+      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || [];
+      const user = users.find((u) => u.id === userId);
       if (!user) {
         return HttpResponse.json(
-          { error: { code: 'NOT_FOUND', message: 'User not found' } },
+          { error: { code: "NOT_FOUND", message: "User not found" } },
           { status: 404 }
-        )
+        );
       }
-      return HttpResponse.json<UserItemResponse>({ data: user })
+      return HttpResponse.json<UserItemResponse>({ data: user });
     }),
 
     // POST /api/users - persist to localStorage
-    http.post('/api/v1/users', async ({ request }) => {
-      const body = await request.json()
-      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || []
+    http.post("/api/v1/users", async ({ request }) => {
+      const body = await request.json();
+      const users = storage.get<User[]>(STORAGE_KEYS.USERS) || [];
       const newUser = {
         id: `user-${Date.now()}`,
         ...body,
         createdAt: new Date().toISOString(),
-      }
-      storage.set(STORAGE_KEYS.USERS, [...users, newUser])
+      };
+      storage.set(STORAGE_KEYS.USERS, [...users, newUser]);
       return HttpResponse.json<UserItemResponse>(
         { data: newUser },
         { status: 201 }
-      )
+      );
     }),
-  ]
+  ];
   ```
 
 - **Key principle**: Orval generates types and React Query hooks; MSW handlers use localStorage for data
@@ -910,6 +1058,83 @@ All data access MUST go through an API layer defined by OpenAPI specification. T
 - Backend team receives complete OpenAPI spec with all endpoints documented
 
 **Rationale**: By using Orval with MSW, the prototype behaves identically to a production app with a real backend. Code generation ensures types and hooks stay in sync with the API contract. Orval provides compile-time type safety for all API calls and generates React Query hooks automatically. This eliminates the common problem of prototypes that "work" but require complete rewrites when connecting to real APIs.
+
+### BACKEND-READY: Backend-Ready Frontend Architecture (NON-NEGOTIABLE)
+
+The frontend application MUST be designed to work with a real backend by only changing environment configuration. This requires strict separation between frontend code and MSW mock backend code.
+
+**Type Ownership (NON-NEGOTIABLE)**
+
+| Layer              | Location                      | Purpose                                                 |
+| ------------------ | ----------------------------- | ------------------------------------------------------- |
+| **API Contract**   | `src/api/generated/models/`   | API request/response shapes (generated from OpenAPI)    |
+| **Frontend State** | `src/context/`, `src/stores/` | UI state management (locally defined types)             |
+| **MSW Storage**    | `src/mocks/types.ts`          | Mock backend internal storage (server-side data models) |
+| **E2E Seeding**    | `tests/e2e/utils/`            | Duplicated types for browser context isolation          |
+
+**Import Rules (NON-NEGOTIABLE)**
+
+1. **Frontend MUST NOT import from `src/mocks/`**
+
+   - Exception: `main.tsx` conditionally enables MSW in dev mode
+   - Frontend types MUST be defined locally or use API-generated types
+   - Violation example: `import { AuthSession } from '@/mocks/types'` in a React component
+
+2. **Frontend MUST NOT implement server-side logic**
+
+   - Session/cookie management → server responsibility (MSW in dev, real server in prod)
+   - Password hashing → server responsibility
+   - Token generation → server responsibility
+   - Data validation that requires server state → server responsibility
+
+3. **Frontend state management**
+   - Use API-generated types (`CurrentUser`, `User`, etc.) for data from API responses
+   - Define local types for UI-specific state (e.g., `AuthUser` in context)
+   - NEVER store session metadata that only server should know (e.g., session expiry internals)
+
+**Authentication Pattern (NON-NEGOTIABLE)**
+
+Frontend authentication MUST follow this pattern:
+
+```
+Login:  POST /auth/login → Server sets httpOnly cookie → Frontend stores user info in React state
+Check:  GET /auth/me → 200 = authenticated (store user), 401 = not authenticated (clear state)
+Logout: POST /auth/logout → Server clears cookie → Frontend clears React state
+```
+
+- Frontend MUST NOT manage cookies directly
+- Frontend MUST NOT store session tokens in localStorage or state
+- Frontend MUST rely on API responses to determine authentication status
+
+**Session Refresh Strategy (NON-NEGOTIABLE)**
+
+- All authenticated API requests MUST include credentials (cookie-based sessions)
+- When receiving `401` from a protected API request (excluding `/auth/refresh` itself):
+  - Frontend MUST attempt a single-flight refresh via `POST /auth/refresh`
+  - If refresh succeeds, frontend MUST retry the original request exactly once
+  - If refresh fails, frontend MUST treat the session as expired and redirect to sign-in
+- Refresh attempts MUST NOT loop (refresh endpoint MUST NOT trigger another refresh attempt)
+
+**MSW Mock Backend Responsibilities**
+
+The MSW mock backend (`src/mocks/`) implements server behavior:
+
+- Session management (create, validate, expire sessions)
+- Data persistence (CRUD operations on localStorage)
+- Authentication logic (password verification, token generation)
+- Response transformation (internal types → API response types)
+
+**Switching to Real Backend**
+
+To connect to a real backend, only configuration changes are required:
+
+1. Run the app in a non-development mode (MSW mocking is enabled only in development)
+2. Set `VITE_API_BASE_URL` to real API endpoint
+3. No frontend code changes required
+
+If frontend code changes are required to switch backends, this is a **constitution violation**.
+
+**Rationale**: Prototypes that tightly couple frontend code to mock implementations become throwaway code when connecting to real backends. By enforcing strict separation, the frontend codebase remains production-ready from day one. This discipline also prevents security anti-patterns like storing session tokens in frontend state or implementing authentication logic in the browser.
 
 **Code Organization**:
 
@@ -1069,4 +1294,4 @@ This constitution supersedes all other development practices for this clickable 
 - MINOR: New principle or significant guidance addition
 - PATCH: Clarifications and minor refinements
 
-**Version**: 2.7.0 | **Ratified**: 2025-12-13 | **Last Amended**: 2025-12-18
+**Version**: 2.9.6 | **Ratified**: 2025-12-13 | **Last Amended**: 2026-01-06

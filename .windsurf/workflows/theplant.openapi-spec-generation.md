@@ -86,7 +86,7 @@ Decision matrix:
 #### 3.1 Basic Structure (MUST follow)
 
 ```yaml
-openapi: 3.0.3
+openapi: 3.0.4
 info:
   title: [Project Name] API
   version: 1.0.0
@@ -352,9 +352,42 @@ paths:
               required: [ids]
 ```
 
+#### 3.10 `$ref` Usage Rules (MUST follow for OpenAPI 3.0.x)
+
+OpenAPI 3.0.x tooling commonly treats an object containing `$ref` as a **Reference Object**.
+In practice, many linters/generators will ignore or warn on sibling keys next to `$ref`.
+
+Rules:
+
+- Never put `description`, `nullable`, `example`, `default`, `format`, `deprecated`, `title`, or other schema keywords at the same level as `$ref`.
+- If you need to attach metadata, wrap the `$ref` using `allOf`.
+
+Wrong:
+
+```yaml
+properties:
+  protocol:
+    $ref: '#/components/schemas/ProviderProtocol'
+    description: Protocol of identity provider
+```
+
+Correct:
+
+```yaml
+properties:
+  protocol:
+    allOf:
+      - $ref: '#/components/schemas/ProviderProtocol'
+    description: Protocol of identity provider
+```
+
+Also apply this rule inside `items:`, `oneOf:` entries, request/response schemas, and parameter schemas.
+
 ### Step 4: Validate OpenAPI Spec
 
 **Why:** Ensure the generated spec is valid and follows conventions.
+
+In addition to standard linting, you MUST run a `$ref` sibling-key check to prevent OpenAPI 3.0.x compatibility issues.
 
 ```bash
 # Install spectral if not present
@@ -362,6 +395,19 @@ pnpm add -D @stoplight/spectral-cli
 
 # Validate OpenAPI spec
 pnpm exec spectral lint src/api/openapi.yaml
+```
+
+If this repository contains `.redocly.yaml`, you SHOULD also lint with Redocly (it may encode project-specific rules):
+
+```bash
+# If .redocly.yaml exists
+npx @redocly/cli@latest lint -c .redocly.yaml
+```
+
+Mandatory `$ref` sibling-key check (fail the workflow if any matches are found):
+
+```bash
+node -e "const fs=require('fs');const YAML=require('yaml');const doc=YAML.parse(fs.readFileSync('src/api/openapi.yaml','utf8'));const REF='$'+'ref';const out=[];function walk(v,p){if(!v||typeof v!=='object')return; if(Array.isArray(v)){v.forEach((x,i)=>walk(x,p.concat([i])));return;} const keys=Object.keys(v); if(keys.includes(REF)&&keys.length>1){out.push({path:p.join('.'),keys});} for(const k of keys) walk(v[k],p.concat([k]));} walk(doc,[]); if(out.length){console.error('Found $ref with sibling keys (OpenAPI 3.0.x compatibility issue):'); console.error(JSON.stringify(out,null,2)); process.exit(1);} console.log('OK: no $ref sibling keys');"
 ```
 
 If validation fails, fix the issues before proceeding.
@@ -428,6 +474,7 @@ Before completing, verify the spec follows these rules:
 - [ ] List responses wrap data in `{ data: [], meta: {} }`
 - [ ] Single responses wrap data in `{ data: {} }`
 - [ ] Error responses use `{ error: { code, message, details? } }`
+- [ ] OpenAPI 3.0.x: never mix `$ref` with sibling schema keys; use `allOf` wrapper when adding `description/nullable/example/default/...`
 
 ### Pagination
 - [ ] Each list endpoint uses ONLY ONE pagination style (offset OR cursor)

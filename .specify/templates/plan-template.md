@@ -19,10 +19,10 @@
 
 **Language/Version**: TypeScript (strict mode)  
 **Package Manager**: pnpm  
-**Primary Dependencies**: React, Vite, React Router, shadcn/ui, Tailwind CSS, Lucide  
+**Primary Dependencies**: React, Vite, TanStack Router, TanStack React Query, shadcn/ui, Tailwind CSS, Lucide  
 **Storage**: Browser localStorage via MSW (Mock Service Worker)  
-**API Layer**: OpenAPI 3.0+ spec with MSW mock backend  
-**Code Generation**: `openapi-typescript` for types, `openapi-fetch` for typed client  
+**API Layer**: OpenAPI 3.0+ spec (`src/api/openapi.yaml`) with Orval-generated React Query hooks  
+**Code Generation**: Orval (`pnpm api:generate`) → `src/api/generated/*`  
 **Testing**: Playwright E2E tests only (1s action timeout, HTML dump on failure)  
 **Target Platform**: Web browser (clickable prototype)  
 **Project Type**: Single frontend application  
@@ -31,7 +31,7 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 [Gates determined based on constitution file]
 
@@ -50,6 +50,7 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
+
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -59,17 +60,16 @@ specs/[###-feature]/
 
 ```text
 src/
-├── api/           # OpenAPI spec, client, and generated types
+├── api/           # OpenAPI spec, Orval-generated code, and custom fetch mutator
 │   ├── openapi.yaml   # OpenAPI 3.0+ specification (deliverable for backend)
 │   ├── generated/     # Generated files - DO NOT EDIT (AI must not modify)
-│   │   └── schema.d.ts  # Generated types from openapi-typescript
-│   └── client.ts      # Typed API client using openapi-fetch
+│   └── custom-fetch.ts # Orval mutator (custom fetch wrapper)
 ├── mocks/         # MSW (Mock Service Worker) handlers
 │   ├── handlers.ts    # Request handlers (reads/writes localStorage)
 │   └── browser.ts     # MSW browser worker setup
-├── hooks/         # Custom hooks wrapping typed API client
+├── hooks/         # Custom hooks (if needed)
 ├── components/    # Reusable UI components (shadcn/ui based)
-├── pages/         # Route-level components
+├── routes/        # TanStack Router file-based routes
 ├── lib/           # Utilities (storage.ts, etc.)
 └── data/          # Seed data for demo/testing
 
@@ -85,7 +85,7 @@ directories captured above]
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
+| -------------------------- | ------------------ | ------------------------------------ |
+| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |
